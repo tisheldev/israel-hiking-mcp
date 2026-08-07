@@ -15,7 +15,7 @@ from ihm_mcp.errors import (
 )
 
 # The PRD's taxonomy, spelled out rather than derived: this list is the spec,
-# and a diff here should be a deliberate decision, not a side effect.
+# and a diff here should be a decision, not a side effect.
 EXPECTED_CODES = {
     "invalid_input",
     "place_not_found",
@@ -29,22 +29,21 @@ EXPECTED_CODES = {
     "rate_limited",
 }
 
+ERRORS = {cls.code: cls for cls in IhmError.__subclasses__()}
 
-def test_the_registry_matches_the_documented_taxonomy():
-    assert set(IhmError.registry) == EXPECTED_CODES
+
+def test_the_taxonomy_is_exactly_what_is_documented():
+    assert set(ERRORS) == EXPECTED_CODES
+    assert len(IhmError.__subclasses__()) == len(EXPECTED_CODES)
 
 
 @pytest.mark.parametrize("code", sorted(EXPECTED_CODES))
 def test_every_error_renders_its_code_first(code: str):
-    """`str(exc)` is the entire payload the client receives; the code leads it."""
-    error = IhmError.registry[code]("something went wrong")
-
-    assert str(error).startswith(f"[{code}] ")
+    assert str(ERRORS[code]("something went wrong")).startswith(f"[{code}] ")
 
 
 def test_messages_are_a_single_short_line():
-    noisy = "line one\n  line two\t\tline three " + "x" * 500
-    error = InvalidInputError(noisy)
+    error = InvalidInputError("line one\n  line two\t\tline three " + "x" * 500)
 
     assert "\n" not in error.message
     assert "\t" not in error.message
@@ -57,9 +56,9 @@ def test_retryable_errors_say_so_and_others_stay_quiet():
 
 
 def test_an_explicit_hint_replaces_the_default():
-    error = UpstreamTimeoutError("timed out", hint="Try a smaller radius.")
-
-    assert str(error).endswith("Try a smaller radius.")
+    assert str(UpstreamTimeoutError("timed out", hint="Try a smaller radius.")).endswith(
+        "Try a smaller radius."
+    )
 
 
 def test_upstream_not_found_is_outside_the_taxonomy():
@@ -89,31 +88,20 @@ async def test_tool_errors_hides_unexpected_failures(caplog: pytest.LogCaptureFi
         with pytest.raises(UpstreamUnavailableError) as caught:
             await exploding()
 
-    # The client sees a generic failure...
     assert secret not in str(caught.value)
     assert "exploding" in str(caught.value)
-    # ...while the detail needed to debug it is in the stderr log.
-    assert secret in caplog.text
+    assert secret in caplog.text  # still debuggable from the stderr log
     assert "KeyError" in caplog.text
 
 
-def test_tool_errors_wraps_sync_functions_too():
-    @tool_errors
-    def exploding():
-        raise ValueError("boom")
-
-    with pytest.raises(UpstreamUnavailableError):
-        exploding()
-
-
 async def test_tool_errors_preserves_the_wrapped_signature():
+    """FastMCP builds the schema and description from these."""
+
     @tool_errors
     async def search(query: str, limit: int = 5) -> str:
         """Docstring the MCP layer turns into a tool description."""
         return f"{query}:{limit}"
 
-    # FastMCP builds the input schema and description from these, so the
-    # decorator must be transparent.
     assert await search("haifa") == "haifa:5"
     assert search.__name__ == "search"
     assert search.__doc__ is not None

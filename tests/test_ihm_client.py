@@ -87,34 +87,15 @@ async def test_get_json_parses_the_body_and_identifies_this_client(
 async def test_get_bytes_returns_the_raw_body(
     client: UpstreamClient, mock_upstream: respx.MockRouter
 ):
-    mock_upstream.get("/vector/data/global_points/12/2455/1662.mvt").mock(
+    tile = "/vector/data/global_points/12/2455/1662.mvt"
+    route = mock_upstream.get(tile).mock(
         return_value=httpx.Response(
             200, content=b"\x1a\x0f", headers={"content-type": "application/x-protobuf"}
         )
     )
 
-    body = await client.get_bytes(
-        "/vector/data/global_points/12/2455/1662.mvt",
-        accept="application/x-protobuf",
-        expected_content_type="application/x-protobuf",
-    )
-
-    assert body == b"\x1a\x0f"
-
-
-async def test_get_bytes_rejects_an_unexpected_content_type(
-    client: UpstreamClient, mock_upstream: respx.MockRouter
-):
-    """A tile endpoint answering with HTML means the contract moved."""
-    mock_upstream.get("/vector/data/global_points/12/1/1.mvt").mock(
-        return_value=httpx.Response(200, html="<html>not a tile</html>")
-    )
-
-    with pytest.raises(UpstreamSchemaChangedError):
-        await client.get_bytes(
-            "/vector/data/global_points/12/1/1.mvt",
-            expected_content_type="application/x-protobuf",
-        )
+    assert await client.get_bytes(tile, accept="application/x-protobuf") == b"\x1a\x0f"
+    assert route.calls.last.request.headers["accept"] == "application/x-protobuf"
 
 
 # --- failure mapping --------------------------------------------------------

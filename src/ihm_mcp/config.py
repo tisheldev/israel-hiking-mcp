@@ -1,14 +1,8 @@
 """Runtime settings, read from the environment once at startup.
 
-Every value here is a promise made to somebody else's server: how long we are
-willing to wait, how many connections we open at once, how much we re-ask for
-data we already have. They are configurable because deployments differ, and
-bounded because an unbounded value is a way to accidentally hammer a
-volunteer-run service.
-
-Configuration is parsed and validated *at startup*, not on first use. A typo in
-`IHM_REQUEST_TIMEOUT_SECONDS` should stop the server with a readable message,
-not surface as a confusing tool failure an hour into a session.
+Every value here is a promise made to somebody else's server. They are
+configurable because deployments differ, and bounded because an unbounded value
+is a way to accidentally hammer a volunteer-run service.
 """
 
 from __future__ import annotations
@@ -31,30 +25,15 @@ USER_AGENT = (
 
 
 class ConfigurationError(Exception):
-    """The environment does not describe a runnable server.
-
-    Deliberately not part of the tool-error taxonomy in `errors.py`: those
-    describe a failed request, this one means the process should not start.
-    """
+    """The environment does not describe a runnable server."""
 
 
 class Settings(BaseSettings):
-    """Environment-driven settings, all prefixed `IHM_`.
+    """Environment-driven settings, all prefixed `IHM_`."""
 
-    Frozen: settings are read once and shared by every request, so a mutation
-    anywhere would silently change behaviour everywhere.
-    """
+    model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, frozen=True, extra="ignore")
 
-    model_config = SettingsConfigDict(
-        env_prefix=ENV_PREFIX,
-        frozen=True,
-        extra="ignore",
-    )
-
-    base_url: HttpUrl = Field(
-        default=HttpUrl("https://mapeak.com"),
-        description="Israel Hiking Map / Mapeak API and tile host.",
-    )
+    base_url: HttpUrl = HttpUrl("https://mapeak.com")
     request_timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 10.0
     user_agent: Annotated[str, Field(min_length=1)] = USER_AGENT
     cache_ttl_seconds: Annotated[int, Field(ge=0, le=86_400)] = 300
@@ -63,32 +42,22 @@ class Settings(BaseSettings):
     max_tiles_per_tool_call: Annotated[int, Field(ge=1, le=500)] = 100
 
 
-def _describe(error: ValidationError) -> str:
-    """Turn pydantic's field-oriented report into env-var-oriented advice.
-
-    Users set `IHM_CACHE_TTL_SECONDS`; they never see the field name, so an
-    unmodified pydantic message sends them looking for the wrong thing.
-    """
-    lines = []
-    for detail in error.errors():
-        field = ".".join(str(part) for part in detail["loc"])
-        lines.append(f"  {ENV_PREFIX}{field.upper()}: {detail['msg']}")
-    return "invalid configuration:\n" + "\n".join(lines)
-
-
 def load_settings() -> Settings:
     """Build settings from the environment, or raise `ConfigurationError`."""
     try:
         return Settings()
     except ValidationError as exc:
-        raise ConfigurationError(_describe(exc)) from exc
+        # Users set IHM_CACHE_TTL_SECONDS; pydantic reports `cache_ttl_seconds`
+        # and sends them looking for the wrong thing.
+        problems = [
+            f"  {ENV_PREFIX}{error['loc'][0]}".upper() + f": {error['msg']}"
+            for error in exc.errors()
+        ]
+        raise ConfigurationError("\n".join(["invalid configuration:", *problems])) from exc
 
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """The process-wide settings, parsed on first call.
-
-    Cached so that the environment is read exactly once; tests that manipulate
-    the environment must call `get_settings.cache_clear()`.
-    """
+    """The process-wide settings. Tests that change the environment must
+    call `get_settings.cache_clear()`."""
     return load_settings()

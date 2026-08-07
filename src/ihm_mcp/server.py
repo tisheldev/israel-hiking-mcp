@@ -54,9 +54,8 @@ class AppContext:
 async def lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
     """Own the HTTP client for the life of the session.
 
-    One connection pool for the whole process, opened at startup and closed on
-    shutdown. Building it per tool call would throw away connection reuse and
-    the shared cache, which is the entire point of `UpstreamClient`.
+    One connection pool and one cache for the whole process; building them per
+    tool call would throw both away.
     """
     settings = get_settings()
     async with UpstreamClient(settings) as ihm:
@@ -117,8 +116,7 @@ def main() -> None:
     try:
         get_settings()
     except ConfigurationError as exc:
-        # Fail here, loudly, rather than surfacing a misconfiguration as a
-        # baffling tool error mid-session.
+        # Fail here rather than as a baffling tool error mid-session.
         logger.error("%s", exc)
         raise SystemExit(2) from None
     logger.info("starting %s v%s on stdio", SERVER_NAME, __version__)
