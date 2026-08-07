@@ -5,7 +5,9 @@ description = "Unofficial, non-commercial, read-only MCP server for Israel Hikin
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "httpx>=0.28.1",
     "mcp>=1.28,<2",
+    "pydantic-settings>=2.6",
 ]
 
 [project.scripts]
@@ -15,6 +17,7 @@ israel-hiking-mcp = "ihm_mcp.server:main"
 dev = [
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
+    "respx>=0.22",
 ]
 
 [build-system]
