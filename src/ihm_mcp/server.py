@@ -11,13 +11,17 @@ import inspect
 import logging
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from ihm_mcp import ATTRIBUTION, SERVER_NAME, __version__
+from ihm_mcp.config import ConfigurationError, Settings, get_settings
+from ihm_mcp.ihm_client import UpstreamClient
 
 logger = logging.getLogger("ihm_mcp")
 
@@ -38,7 +42,29 @@ def configure_logging(level: int | str | None = None) -> None:
     root.setLevel(resolved)
 
 
-mcp = FastMCP(SERVER_NAME)
+@dataclass(frozen=True)
+class AppContext:
+    """What a tool call needs from the process, reachable via `Context`."""
+
+    settings: Settings
+    ihm: UpstreamClient
+
+
+@asynccontextmanager
+async def lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
+    """Own the HTTP client for the life of the session.
+
+    One connection pool for the whole process, opened at startup and closed on
+    shutdown. Building it per tool call would throw away connection reuse and
+    the shared cache, which is the entire point of `UpstreamClient`.
+    """
+    settings = get_settings()
+    async with UpstreamClient(settings) as ihm:
+        logger.info("upstream client ready for %s", settings.base_url)
+        yield AppContext(settings=settings, ihm=ihm)
+
+
+mcp = FastMCP(SERVER_NAME, lifespan=lifespan)
 
 # FastMCP has no `version` argument, and the low-level server falls back to the
 # MCP SDK's own version in the initialize response. Report ours instead.
@@ -88,6 +114,13 @@ def ping(echo: str = "pong") -> PingResult:
 
 def main() -> None:
     configure_logging()
+    try:
+        get_settings()
+    except ConfigurationError as exc:
+        # Fail here, loudly, rather than surfacing a misconfiguration as a
+        # baffling tool error mid-session.
+        logger.error("%s", exc)
+        raise SystemExit(2) from None
     logger.info("starting %s v%s on stdio", SERVER_NAME, __version__)
     mcp.run(transport="stdio")
 
