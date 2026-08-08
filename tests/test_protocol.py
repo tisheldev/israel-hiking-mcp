@@ -8,17 +8,27 @@ from ihm_mcp import ATTRIBUTION, SERVER_NAME, __version__
 from tests.conftest import connected_session
 
 
-async def test_tools_list_exposes_ping_with_a_schema():
+async def test_tools_list_exposes_every_registered_tool():
     async with connected_session() as session:
         tools = (await session.list_tools()).tools
 
-    assert [t.name for t in tools] == ["ping"]
+    assert sorted(t.name for t in tools) == ["ping", "search_places"]
 
-    ping = tools[0]
-    assert ping.description  # the LLM picks tools by description; never leave it empty
-    # Descriptions are what the model reads, so no leaked source indentation.
-    assert not any(line.startswith(" ") for line in ping.description.splitlines())
-    assert ping.inputSchema["type"] == "object"
+    for tool in tools:
+        # The LLM picks tools by description; never leave one empty, and never
+        # leak Python's source indentation into the text it reads.
+        assert tool.description
+        assert not any(line.startswith(" ") for line in tool.description.splitlines())
+        assert tool.inputSchema["type"] == "object"
+        # Nothing here writes anywhere, and saying so can save a confirmation.
+        assert tool.annotations is not None
+        assert tool.annotations.readOnlyHint is True
+
+
+async def test_ping_schema_marks_its_only_argument_optional():
+    async with connected_session() as session:
+        (ping,) = [t for t in (await session.list_tools()).tools if t.name == "ping"]
+
     assert ping.inputSchema["properties"]["echo"]["type"] == "string"
     # `echo` has a default, so nothing is required.
     assert not ping.inputSchema.get("required")

@@ -137,7 +137,7 @@ def test_stdio_session_answers_every_request(session: Session):
     assert init["serverInfo"]["version"] == __version__
     assert init["capabilities"]["tools"] is not None
 
-    assert [tool["name"] for tool in by_id[2]["result"]["tools"]] == ["ping"]
+    assert "ping" in [tool["name"] for tool in by_id[2]["result"]["tools"]]
 
     call = by_id[3]["result"]
     assert call["structuredContent"]["status"] == "ok"
