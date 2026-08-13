@@ -4,11 +4,10 @@ An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
 server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
 LLM hosts.
 
-> **Status: early scaffolding (PR 2 of 9).** The server speaks MCP over stdio
-> and has its HTTP foundation — settings, typed errors, a cached and rate-capped
-> upstream client — but still exposes only a placeholder `ping` tool. Place
-> search, route search, route details, POIs along a route, and routing all land
-> in later PRs.
+> **Status: early scaffolding (PR 3 of 9).** The server speaks MCP over stdio,
+> has its HTTP foundation — settings, typed errors, a cached and rate-capped
+> upstream client — and exposes its first real tool, `search_places`. Route
+> search, route details, POIs along a route, and routing all land in later PRs.
 
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
 upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
@@ -49,7 +48,8 @@ npx @modelcontextprotocol/inspector uv run israel-hiking-mcp
 ```
 
 Set the working directory to this repository, connect, open the **Tools** tab,
-and call `ping`.
+and call `ping`, then `search_places` with `query: "Haifa"` — the first result
+should be Haifa, Israel, with an `ihmUrl` that opens on the map site.
 
 ## Use from an MCP host
 
@@ -70,7 +70,28 @@ Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
 
 | Tool | Description |
 |---|---|
-| `ping` | Liveness check returning the server version and data attribution. Placeholder; removed once real tools exist. |
+| `search_places` | Find places by name (Hebrew or English) and return ranked candidate coordinates, each with a `{source, identifier}` ref and a link to the map site. |
+| `ping` | Liveness check returning the server version and data attribution. Placeholder; removed once the tool set is complete. |
+
+### `search_places`
+
+| Argument | Type | Default | Notes |
+|---|---|---|---|
+| `query` | string | — | Place name, 2–100 characters after trimming |
+| `israelOnly` | boolean | `true` | Drop matches outside the Israel bounding box |
+| `language` | `he` \| `en` | `en` | Language of the returned names, and of the `ihmUrl` link |
+| `limit` | integer | `10` | 1–20 |
+
+Upstream's search is a **worldwide** index — "Haifa" matches places in Syria,
+the United States, France and Chile before it reaches Haifa, Israel. Results
+are therefore ranked by whether they fall inside an approximate bounding box
+around Israel (29.3–33.4 N, 34.2–35.9 E), and by default the rest are dropped;
+the `warnings` field always says when that happened. The box is a ranking
+device, not a border: it is axis-aligned, so it also takes in parts of
+neighbouring territory.
+
+No match is not an error — the tool returns an empty `places` list with a
+warning explaining what to try next. The tool never picks a candidate for you.
 
 ## Configuration
 

@@ -1,8 +1,8 @@
 """The HTTP client's lifetime is tied to the session, not to a tool call."""
 
+from ihm_mcp.app import lifespan, mcp
 from ihm_mcp.config import get_settings
 from ihm_mcp.ihm_client import UpstreamClient
-from ihm_mcp.server import lifespan, mcp
 from tests.conftest import connected_session
 
 

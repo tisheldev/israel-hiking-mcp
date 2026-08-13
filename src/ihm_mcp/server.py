@@ -3,29 +3,27 @@
 Transport note: on stdio, stdout *is* the JSON-RPC channel. Anything written
 there that is not a protocol message corrupts the stream and breaks the client,
 so this process never prints to stdout — logging is pinned to stderr.
+
+The application object lives in `app.py`; this module wires up logging, pulls
+in the tool package so its tools register, and starts the transport.
 """
 
 from __future__ import annotations
 
-import inspect
 import logging
 import os
 import sys
-from collections.abc import AsyncIterator, Callable
-from contextlib import asynccontextmanager
-from dataclasses import dataclass
-from typing import Any, TypeVar
 
-from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
 from ihm_mcp import ATTRIBUTION, SERVER_NAME, __version__
-from ihm_mcp.config import ConfigurationError, Settings, get_settings
-from ihm_mcp.ihm_client import UpstreamClient
+from ihm_mcp.app import mcp, tool
+from ihm_mcp.config import ConfigurationError, get_settings
+from ihm_mcp.tools import places as places  # noqa: F401  (registers the tools)
 
 logger = logging.getLogger("ihm_mcp")
 
-F = TypeVar("F", bound=Callable[..., Any])
+__all__ = ["configure_logging", "main", "mcp"]
 
 
 def configure_logging(level: int | str | None = None) -> None:
@@ -40,48 +38,6 @@ def configure_logging(level: int | str | None = None) -> None:
     )
     root.addHandler(handler)
     root.setLevel(resolved)
-
-
-@dataclass(frozen=True)
-class AppContext:
-    """What a tool call needs from the process, reachable via `Context`."""
-
-    settings: Settings
-    ihm: UpstreamClient
-
-
-@asynccontextmanager
-async def lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
-    """Own the HTTP client for the life of the session.
-
-    One connection pool and one cache for the whole process; building them per
-    tool call would throw both away.
-    """
-    settings = get_settings()
-    async with UpstreamClient(settings) as ihm:
-        logger.info("upstream client ready for %s", settings.base_url)
-        yield AppContext(settings=settings, ihm=ihm)
-
-
-mcp = FastMCP(SERVER_NAME, lifespan=lifespan)
-
-# FastMCP has no `version` argument, and the low-level server falls back to the
-# MCP SDK's own version in the initialize response. Report ours instead.
-mcp._mcp_server.version = __version__
-
-
-def tool(**kwargs: Any) -> Callable[[F], F]:
-    """Register an MCP tool, using the docstring as its description.
-
-    FastMCP passes `__doc__` through verbatim, which leaves Python's source
-    indentation in the text the model reads in `tools/list`.
-    """
-
-    def register(fn: F) -> F:
-        kwargs.setdefault("description", inspect.cleandoc(fn.__doc__ or ""))
-        return mcp.tool(**kwargs)(fn)
-
-    return register
 
 
 class PingResult(BaseModel):
@@ -99,7 +55,7 @@ def ping(echo: str = "pong") -> PingResult:
     """Check that the server is alive and report its version and data attribution.
 
     This tool touches no upstream service. It is a placeholder used to verify
-    transport and tool wiring, and will be removed once real tools exist.
+    transport and tool wiring, and will be removed once the tool set is complete.
     """
     logger.debug("ping called with echo=%r", echo)
     return PingResult(
