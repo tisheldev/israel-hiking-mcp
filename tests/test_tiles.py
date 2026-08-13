@@ -1,12 +1,8 @@
 """Covering an area with tiles, and reading the features back out of them.
 
 No upstream tile data is committed here — the map's data is CC BY-NC-SA and a
-captured tile would be a redistribution. Every fixture below is a tile this
-test builds with `mapbox-vector-tile`'s own encoder, so the decoding tests
-prove this server handles the format, and nothing about what upstream puts in
-it. The two conventions they lean on — the OSM identity packed into the feature
-id, and `poiGeolocation` arriving as a JSON string — are transcribed from the
-map site's `poi.service.ts`, which is the only place they are written down.
+captured tile would be a redistribution. Every fixture below is a tile these
+tests build with `mapbox-vector-tile`'s own encoder.
 """
 
 from collections.abc import Iterator
@@ -57,8 +53,7 @@ HAIFA_TILE = mercantile.Tile(x=2446, y=1652, z=12)
 
 
 def tile_bytes(layers: dict[str, list[dict[str, Any]]], *, extent: int = 4096) -> bytes:
-    """A real MVT body, written the way the spec (and upstream) writes one:
-    tile-local integers whose origin is the top-left corner."""
+    """A real MVT body: tile-local integers whose origin is the top-left corner."""
     return mapbox_vector_tile.encode(
         [{"name": name, "features": features} for name, features in layers.items()],
         default_options={"y_coord_down": True, "extents": extent},
@@ -80,12 +75,9 @@ def feature(
 
 
 def pixels(tile: Tile, point: Coordinates, *, extent: int = 4096) -> tuple[int, int]:
-    """Where a real coordinate sits on a tile's grid.
-
-    The forward direction of what `tiles.projector` undoes, written through
-    mercantile's point projection rather than its tile bounds so the two are
-    not the same arithmetic read twice.
-    """
+    """Where a real coordinate sits on a tile's grid — the forward direction of
+    what `tiles.decode.projector` undoes, written through mercantile's point
+    projection so the two are not the same arithmetic read twice."""
     left, bottom, right, top = mercantile.xy_bounds(tile)
     x, y = mercantile.xy(point.lng, point.lat)
     return (
@@ -478,20 +470,12 @@ def test_an_area_is_placed_in_the_middle_of_its_extent():
 # --- across tiles ------------------------------------------------------------
 
 
-def make_settings(**overrides: Any) -> Settings:
-    values = {
-        "base_url": BASE_URL,
-        "request_timeout_seconds": 1.0,
-        "max_concurrent_requests": 4,
-        "max_tiles_per_tool_call": BUDGET,
-    }
-    values.update(overrides)
-    return Settings(**values)
-
-
 @pytest.fixture
-def client() -> Iterator[UpstreamClient]:
-    yield UpstreamClient(make_settings(), retry_backoff_seconds=0)
+def client() -> UpstreamClient:
+    settings = Settings(
+        base_url=BASE_URL, request_timeout_seconds=1.0, max_concurrent_requests=4
+    )
+    return UpstreamClient(settings, retry_backoff_seconds=0)
 
 
 @pytest.fixture
@@ -534,7 +518,7 @@ async def test_every_tile_of_the_area_is_asked_for(
 ):
     route = serve(mock_upstream, {})
 
-    await points_in_radius(client, HAIFA, 10)
+    await points_in_radius(client, HAIFA, 10, max_tiles=BUDGET)
 
     asked = {call.request.url.path for call in route.calls}
     assert asked == {tile_path(tile) for tile in tiles_for_radius(HAIFA, 10, max_tiles=BUDGET)}
@@ -548,7 +532,7 @@ async def test_a_tile_the_map_never_cut_is_empty_ground_not_a_failure(
     box touches the sea must not fail on it."""
     serve(mock_upstream, {HAIFA_TILE: tile_bytes({"global_points": [feature(id=11)]})})
 
-    points = await points_in_radius(client, HAIFA, 10)
+    points = await points_in_radius(client, HAIFA, 10, max_tiles=BUDGET)
 
     assert refs(points) == ["node_1"]
 
@@ -571,7 +555,7 @@ async def test_one_unreadable_tile_fails_the_search_rather_than_leaving_a_hole(
     mock_upstream.get(path__startswith="/vector/data/").mock(side_effect=respond)
 
     with pytest.raises(UpstreamUnavailableError):
-        await points_in_radius(client, HAIFA, 10)
+        await points_in_radius(client, HAIFA, 10, max_tiles=BUDGET)
 
 
 async def test_an_undecodable_tile_keeps_its_own_code(
@@ -592,16 +576,16 @@ async def test_a_timeout_reaches_the_caller_as_a_timeout(
         await points_in_tiles(client, [HAIFA_TILE])
 
 
-async def test_the_budget_is_the_configured_one(
+async def test_an_area_over_budget_is_refused_before_a_single_tile_is_fetched(
     client: UpstreamClient, mock_upstream: respx.MockRouter
 ):
-    serve(mock_upstream, {})
-    small = UpstreamClient(make_settings(max_tiles_per_tool_call=4))
+    route = serve(mock_upstream, {})
 
     with pytest.raises(SearchAreaTooLargeError) as failure:
-        await points_in_radius(small, HAIFA, 10)
+        await points_in_radius(client, HAIFA, 10, max_tiles=4)
 
     assert "at most 4 per call" in str(failure.value)
+    assert route.call_count == 0
 
 
 async def test_the_same_tile_is_only_fetched_once(
