@@ -1,15 +1,21 @@
-"""`search_hiking_routes` — what hiking routes are mapped near a point.
+"""The two route tools: finding routes near a point, and resolving one of them.
 
-The map publishes no route search, so this tool builds one: cover the circle
-with tiles, decode the markers in them, and then decide. Everything after the
-fetch is deterministic — same centre, same radius, same constraints, same list
-in the same order — because a tool an agent cannot get a stable answer out of is
-a tool nobody can evaluate.
+`search_hiking_routes` builds a search the map does not publish: cover the
+circle with tiles, decode the markers in them, and then decide. Everything
+after the fetch is deterministic — same centre, same radius, same constraints,
+same list in the same order — because a tool an agent cannot get a stable
+answer out of is a tool nobody can evaluate.
 
 Two things it deliberately does not do. It does not widen the search when
 nothing matches; an empty list with a warning is an answer, and a silently
 larger area is not what was asked. And it does not rank by quality: nothing in
 the tile data says a route is good.
+
+`get_route_details` takes a ref the search returned and asks the source that
+owns it for the actual shape, through the adapters in `route_sources`. The
+answer says what the data records, what had to be done to fit the geometry in a
+response, and — in `unknowns` — the questions this data cannot answer at all,
+which for a route somebody is deciding whether to walk are the important ones.
 """
 
 from __future__ import annotations
@@ -27,8 +33,12 @@ from ihm_mcp.models import (
     Attribution,
     Coordinates,
     Difficulty,
+    FeatureRef,
+    GeometryDetail,
     Language,
     Model,
+    ResolvedRoute,
+    RouteGeometry,
     RouteSummary,
     SearchedArea,
 )
@@ -39,6 +49,8 @@ from ihm_mcp.route_markers import (
     route_summary,
     within_radius,
 )
+from ihm_mcp.route_sources import adapter_for
+from ihm_mcp.spatial import fit_geometry, lines_of
 from ihm_mcp.tiles import points_in_radius
 
 logger = logging.getLogger(__name__)
@@ -240,4 +252,162 @@ async def search_hiking_routes(
             constraints=constraints,
         ),
         attribution=IHM_ATTRIBUTION,
+    )
+
+
+# --- one route in detail -----------------------------------------------------
+
+
+#: What this data cannot answer about any route, whatever its source says.
+#: Fixed, and returned with every route, because these are the questions that
+#: decide whether a walk is a good idea — and silence about them reads as "fine".
+ROUTE_UNKNOWNS = [
+    (
+        "Whether the route is open, permitted or passable today. Closures, "
+        "fire-zone and live-fire restrictions, private land and seasonal "
+        "flooding are not in this data."
+    ),
+    (
+        "Whether there is drinking water anywhere on the route, and whether any "
+        "source shown on the map is flowing, reachable or safe to drink."
+    ),
+    (
+        "Whether the route is waymarked on the ground, or what its terrain "
+        "demands — the recorded line says where it goes, not what walking it "
+        "is like."
+    ),
+    (
+        "How long it takes, and whether it suits a particular person, group, "
+        "season or time of day."
+    ),
+]
+
+
+class RouteDetails(ResolvedRoute):
+    """One route's shape and metadata, plus what the answer does not establish."""
+
+    geometryDetail: GeometryDetail = Field(
+        description="How the returned shape relates to the recorded one."
+    )
+    unknowns: list[str] = Field(
+        description="Questions this data cannot answer about the route. Not "
+        "warnings about this particular result — limits of the data itself, "
+        "which stay true however complete the rest of the answer looks."
+    )
+    warnings: list[str] = Field(
+        description="Things that shaped this result — where the route came "
+        "from, what was done to its shape. Worth relaying to the user."
+    )
+    attribution: Attribution = Field(description="Required credit for this data.")
+
+    @classmethod
+    def of(
+        cls,
+        route: ResolvedRoute,
+        *,
+        geometry: RouteGeometry,
+        detail: GeometryDetail,
+        warnings: list[str],
+    ) -> RouteDetails:
+        """The resolved route as an answer: its own fields, with the geometry
+        that survived the size budget in place of the recorded one."""
+        return cls(
+            **(dict(route) | {"geometry": geometry}),
+            geometryDetail=detail,
+            unknowns=ROUTE_UNKNOWNS,
+            warnings=warnings,
+            attribution=IHM_ATTRIBUTION,
+        )
+
+
+def detail_warnings(
+    *, route: ResolvedRoute, detail: GeometryDetail, source_note: str
+) -> list[str]:
+    """What a caller should know about this route and this answer.
+
+    The source's own note comes first: who recorded the route is the thing that
+    qualifies everything else in the result.
+    """
+    warnings = [source_note]
+    if detail.simplified and detail.toleranceMeters is not None:
+        warnings.append(
+            f"The shape was thinned from {detail.recordedPointCount:,} recorded "
+            f"positions to {detail.pointCount:,}, dropping detail finer than "
+            f"{detail.toleranceMeters:g} m. Where the route runs is unchanged at "
+            "map scale, but measuring the returned line gives a little less than "
+            "`lengthKm`, which is the length the source recorded."
+        )
+    parts = len(lines_of(route.geometry))
+    if parts > 1:
+        warnings.append(
+            f"This route is recorded as {parts} separate lines with gaps between "
+            "them — parts of one saved trip rather than one continuous path."
+        )
+    return warnings
+
+
+@tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+@tool_errors
+async def get_route_details(
+    ctx: ToolContext,
+    route: Annotated[
+        FeatureRef,
+        Field(
+            description="Which route to resolve: the `ref` object from a "
+            "`search_hiking_routes` result, e.g. "
+            '{"source": "Users", "identifier": "iXKu2M4BV5"}. Not every source '
+            "can be resolved — see this tool's description."
+        ),
+    ],
+    language: Annotated[
+        Language,
+        Field(
+            description="Language to prefer for names and descriptions where "
+            "the source holds both: 'he' Hebrew, 'en' English."
+        ),
+    ] = "en",
+) -> RouteDetails:
+    """Get one route's shape and recorded details from the Israel Hiking Map.
+
+    Takes a `{source, identifier}` ref — the `ref` field of a
+    `search_hiking_routes` result — and returns the route's line as GeoJSON,
+    with the title, description, length, climb and difficulty its source
+    records, and a link to the map site.
+
+    Only routes shared by users on the map site (`source: "Users"`) can be
+    resolved right now. A ref from any other source, including OSM, comes back
+    as `unsupported_source`; its `ihmUrl` from the search result still opens the
+    route on the map site.
+
+    A long recorded track is returned thinned to a size a response can carry —
+    `geometryDetail` says whether that happened and by how much, and the line
+    still starts and ends where the recorded one does.
+
+    What a result does not tell you is in `unknowns`, and it is the important
+    part: nothing here establishes that the route is open, permitted, marked,
+    passable or safe, or that there is water on it. Description and difficulty
+    are one person's words, undated. Treat the answer as a lead to check, not a
+    plan to follow.
+    """
+    app = app_context(ctx)
+    adapter = adapter_for(
+        route.source, client=app.ihm, base_url=str(app.settings.base_url)
+    )
+    resolved = await adapter.resolve(route, language)
+    geometry, detail = fit_geometry(resolved.geometry)
+
+    logger.debug(
+        "resolved %s/%s: %d recorded positions, %d returned",
+        route.source,
+        route.identifier,
+        detail.recordedPointCount,
+        detail.pointCount,
+    )
+    return RouteDetails.of(
+        resolved,
+        geometry=geometry,
+        detail=detail,
+        warnings=detail_warnings(
+            route=resolved, detail=detail, source_note=adapter.note
+        ),
     )

@@ -10,6 +10,7 @@ dependencies = [
     "mcp>=1.28,<2",
     "mercantile>=1.2.1",
     "pydantic-settings>=2.6",
+    "shapely>=2.0",
 ]
 
 [project.scripts]
