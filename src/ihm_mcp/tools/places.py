@@ -15,7 +15,7 @@ rather than guessed at.
 from __future__ import annotations
 
 import logging
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 from urllib.parse import quote
 
 from mcp.types import ToolAnnotations
@@ -34,8 +34,10 @@ from ihm_mcp.models import (
     Attribution,
     Coordinates,
     FeatureRef,
+    Language,
     Model,
     PlaceResult,
+    poi_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -44,8 +46,6 @@ MIN_QUERY_CHARS = 2
 MAX_QUERY_CHARS = 100
 DEFAULT_LIMIT = 10
 MAX_LIMIT = 20
-
-Language = Literal["he", "en"]
 
 
 class UpstreamLocation(BaseModel):
@@ -107,13 +107,6 @@ def normalize_query(query: str) -> str:
             f"got {len(term)}. Pass a place name such as 'Haifa' or 'עין חמד'."
         )
     return term
-
-
-def poi_url(base_url: str, ref: FeatureRef, language: Language) -> str:
-    """The map site's page for a feature — the link a person can actually open."""
-    source = quote(ref.source, safe="")
-    identifier = quote(ref.identifier, safe="")
-    return f"{base_url.rstrip('/')}/poi/{source}/{identifier}?language={language}"
 
 
 def normalize(

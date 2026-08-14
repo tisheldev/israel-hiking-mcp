@@ -17,9 +17,9 @@ import sys
 from pydantic import BaseModel, Field
 
 from ihm_mcp import ATTRIBUTION, SERVER_NAME, __version__
+from ihm_mcp import tools as tools  # noqa: F401  (registers the tools)
 from ihm_mcp.app import mcp, tool
 from ihm_mcp.config import ConfigurationError, get_settings
-from ihm_mcp.tools import places as places  # noqa: F401  (registers the tools)
 
 logger = logging.getLogger("ihm_mcp")
 
