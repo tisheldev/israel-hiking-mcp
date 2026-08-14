@@ -4,10 +4,11 @@ An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
 server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
 LLM hosts.
 
-> **Status: early scaffolding (PR 3 of 9).** The server speaks MCP over stdio,
+> **Status: early scaffolding (PR 4 of 9).** The server speaks MCP over stdio,
 > has its HTTP foundation — settings, typed errors, a cached and rate-capped
-> upstream client — and exposes its first real tool, `search_places`. Route
-> search, route details, POIs along a route, and routing all land in later PRs.
+> upstream client — exposes its first real tool, `search_places`, and can read
+> map features out of the vector tileset. Route search, route details, POIs
+> along a route, and routing all land in later PRs.
 
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
 upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
@@ -109,6 +110,20 @@ inside a tool call.
 | `IHM_MAX_CONCURRENT_REQUESTS` | `4` | 1–16 | Simultaneous upstream connections |
 | `IHM_MAX_TILES_PER_TOOL_CALL` | `100` | 1–500 | Tile budget for area searches |
 | `IHM_LOG_LEVEL` | `INFO` | log level | Logs go to stderr only |
+
+### Area searches and the tile budget
+
+The map's routes and points of interest have no query API; they exist only as
+the vector tiles the map site draws (`/vector/data/global_points/{z}/{x}/{y}.mvt`,
+zoom 10–14). An area search therefore costs one request per tile covering it,
+which grows with the square of the radius. Searches run at **zoom 12** by
+default, where a 40 km radius costs 98 tiles — just inside the default budget of
+100. Only tiles that actually reach into the search circle are fetched; the box
+around that circle would cost 121.
+
+Past the budget, a search fails with `search_area_too_large` naming the tile
+count, the limit, and a radius that would have worked, rather than silently
+returning part of the area.
 
 ### Request behaviour
 
