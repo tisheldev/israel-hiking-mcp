@@ -330,18 +330,27 @@ def detail_warnings(
     """
     warnings = [source_note]
     if detail.simplified and detail.toleranceMeters is not None:
+        # Only routes whose source states a length can be compared against one;
+        # for the rest — most OSM routes — there is nothing to point at.
+        recorded_length = (
+            "`lengthKm`, which is the length the source recorded"
+            if route.lengthKm is not None
+            else "the recorded line"
+        )
         warnings.append(
             f"The shape was thinned from {detail.recordedPointCount:,} recorded "
             f"positions to {detail.pointCount:,}, dropping detail finer than "
             f"{detail.toleranceMeters:g} m. Where the route runs is unchanged at "
             "map scale, but measuring the returned line gives a little less than "
-            "`lengthKm`, which is the length the source recorded."
+            f"{recorded_length}."
         )
     parts = len(lines_of(route.geometry))
     if parts > 1:
         warnings.append(
-            f"This route is recorded as {parts} separate lines with gaps between "
-            "them — parts of one saved trip rather than one continuous path."
+            f"This route is recorded as {parts} separate lines that do not meet "
+            "end to end. The gaps between them are in the map data, not in what "
+            "this server could draw: the route is mapped with pieces missing, or "
+            "was saved as several parts."
         )
     return warnings
 
@@ -355,7 +364,7 @@ async def get_route_details(
         Field(
             description="Which route to resolve: the `ref` object from a "
             "`search_hiking_routes` result, e.g. "
-            '{"source": "Users", "identifier": "iXKu2M4BV5"}. Not every source '
+            '{"source": "OSM", "identifier": "relation_282071"}. Not every source '
             "can be resolved — see this tool's description."
         ),
     ],
@@ -374,10 +383,19 @@ async def get_route_details(
     with the title, description, length, climb and difficulty its source
     records, and a link to the map site.
 
-    Only routes shared by users on the map site (`source: "Users"`) can be
-    resolved right now. A ref from any other source, including OSM, comes back
-    as `unsupported_source`; its `ihmUrl` from the search result still opens the
-    route on the map site.
+    Two sources resolve: routes mapped in OpenStreetMap (`source: "OSM"`,
+    identifiers like `relation_282071`), whose geometry is fetched from
+    OpenStreetMap itself, and routes shared by users on the map site
+    (`source: "Users"`). A ref from any other source — `Nakeb`, `iNature`,
+    `Wikidata` — comes back as `unsupported_source`; its `ihmUrl` from the
+    search result still opens the route on the map site.
+
+    An OSM route is assembled from the separate ways it is mapped as, joined
+    where they meet end to end. Most of what it reports comes from optional
+    tags, so `description`, `lengthKm` and the climb figures are null on many
+    routes that are perfectly well mapped — for length, the `lengthKm` of the
+    search result that produced the ref is computed upstream and is usually
+    there when this one is not.
 
     A long recorded track is returned thinned to a size a response can carry —
     `geometryDetail` says whether that happened and by how much, and the line
@@ -390,9 +408,7 @@ async def get_route_details(
     plan to follow.
     """
     app = app_context(ctx)
-    adapter = adapter_for(
-        route.source, client=app.ihm, base_url=str(app.settings.base_url)
-    )
+    adapter = adapter_for(route.source, app)
     resolved = await adapter.resolve(route, language)
     geometry, detail = fit_geometry(resolved.geometry)
 

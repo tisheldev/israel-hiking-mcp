@@ -112,6 +112,85 @@ def rounded(point: Coordinates) -> Coordinates:
     )
 
 
+def joined(chain: list[Position], line: list[Position]) -> list[Position] | None:
+    """The two lines as one where they share an end, or nothing where they
+    do not. A line is reversed when that is what makes the ends meet: a line
+    has a direction, but a route made of them does not have to respect it."""
+    if chain[-1] == line[0]:
+        return chain + line[1:]
+    if chain[-1] == line[-1]:
+        return chain + line[-2::-1]
+    if chain[0] == line[-1]:
+        return line + chain[1:]
+    if chain[0] == line[0]:
+        return line[::-1] + chain[1:]
+    return None
+
+
+def merge_lines(lines: Iterable[Sequence[Position]]) -> list[list[Position]]:
+    """Lines that meet end to end, joined into as few lines as possible.
+
+    A route in OpenStreetMap is a bag of ways, each drawn in whatever direction
+    its mapper happened to draw it and listed in whatever order the relation
+    happens to hold. Returning them as they came would say a continuous trail is
+    forty disconnected pieces, so ends that coincide are sewn together — and
+    ends that do not are left alone, because a gap in the data is a fact about
+    the route worth reporting.
+
+    Ports the map site's own `mergeLines`, with exact endpoint equality in place
+    of its one-metre tolerance: these positions come from shared OSM nodes,
+    rounded the same way, so two ways that meet meet exactly.
+    """
+    chains: list[list[Position] | None] = []
+    # Which chains end at a position, so joining one costs a lookup rather than
+    # a scan: a long trail can hold hundreds of ways.
+    ends: dict[Position, list[int]] = {}
+
+    for line in lines:
+        chain = list(line)
+        if len(chain) < 2:
+            continue
+
+        # Absorb whatever the new line reaches, then whatever the result
+        # reaches: one line can be the piece that closes two chains into one.
+        while (absorbed := absorb(chain, chains, ends)) is not None:
+            chain = absorbed
+
+        chains.append(chain)
+        index = len(chains) - 1
+        for end in (chain[0], chain[-1]):
+            ends.setdefault(end, []).append(index)
+
+    return [chain for chain in chains if chain is not None]
+
+
+def absorb(
+    line: list[Position],
+    chains: list[list[Position] | None],
+    ends: dict[Position, list[int]],
+) -> list[Position] | None:
+    """One chain `line` meets, extended by it and then struck out.
+
+    The chain already there is the one kept whole and in its own direction, so
+    a route reads in the order its parts were listed rather than in whichever
+    order they happened to be joined.
+
+    The index is left holding the struck-out entry: its positions are still a
+    correct answer to "where does something end", and the chain they point at
+    is gone, so the stale entry is skipped rather than repaired.
+    """
+    for end in (line[0], line[-1]):
+        for index in ends.get(end, ()):
+            chain = chains[index]
+            if chain is None:
+                continue
+            extended = joined(chain, line)
+            if extended is not None:
+                chains[index] = None
+                return extended
+    return None
+
+
 def geometry_of(lines: Sequence[Sequence[Position]]) -> RouteGeometry | None:
     """Lines as one GeoJSON geometry, or nothing if none of them is a line.
 
