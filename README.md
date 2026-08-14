@@ -4,11 +4,12 @@ An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
 server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
 LLM hosts.
 
-> **Status: early scaffolding (PR 5 of 9).** The server speaks MCP over stdio,
+> **Status: early scaffolding (PR 6 of 9).** The server speaks MCP over stdio,
 > has its HTTP foundation — settings, typed errors, a cached and rate-capped
-> upstream client — and exposes two tools: `search_places` and
-> `search_hiking_routes`. Route details, POIs along a route, and routing all
-> land in later PRs.
+> upstream client — and exposes three tools: `search_places`,
+> `search_hiking_routes` and `get_route_details`, the last of which resolves
+> user-shared routes only. OSM route geometry, POIs along a route, and routing
+> all land in later PRs.
 
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
 upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
@@ -55,6 +56,11 @@ coordinates to `search_hiking_routes` with `radiusKm: 15`, `minLengthKm: 4`,
 `maxLengthKm: 12` and you should get the Haifa Trail segments and a set of
 Nakeb routes, nearest first.
 
+Then take the `ref` of any result whose `source` is `Users` and pass it to
+`get_route_details` as `route` — it comes back with the route's line, its
+author's own title and description, and the climb they recorded. A ref with
+`source: "OSM"` answers `unsupported_source` for now, by design.
+
 ## Use from an MCP host
 
 Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
@@ -76,6 +82,7 @@ Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
 |---|---|
 | `search_places` | Find places by name (Hebrew or English) and return ranked candidate coordinates, each with a `{source, identifier}` ref and a link to the map site. |
 | `search_hiking_routes` | List hiking routes mapped near a point, nearest first, with length, any difficulty rating, and a link to the map site. |
+| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. User-shared routes only for now. |
 | `ping` | Liveness check returning the server version and data attribution. Placeholder; removed once the tool set is complete. |
 
 ### `search_places`
@@ -133,6 +140,47 @@ cannot satisfy a length range.
 Nothing in a result establishes that a route is open, marked, passable,
 permitted, or safe. `description` is the mapper's own undated note, and is
 often the only place a closure or hazard is recorded.
+
+### `get_route_details`
+
+| Argument | Type | Default | Notes |
+|---|---|---|---|
+| `route` | `{source, identifier}` | — | The `ref` object from a `search_hiking_routes` result |
+| `language` | `he` \| `en` | `en` | Preferred language where the source holds both |
+
+Returns the route's line as GeoJSON (`LineString`, or `MultiLineString` when a
+share holds several unjoined lines), with `startPoint`, `title`,
+`description`, `activity`, `difficulty`, `lengthKm`, `ascentMeters`,
+`descentMeters` and a link to the map site.
+
+**Only `source: "Users"` resolves.** Routes shared by users on the map site come
+from `/api/urls/{id}`. Every other source — `OSM`, `Nakeb`, `iNature`,
+`Wikidata` — returns `unsupported_source` rather than a guessed URL; OSM
+geometry arrives in a later PR, and the `ihmUrl` from the search result opens
+any of them on the map site meanwhile. Note that most routes in a search are
+OSM ones, so this tool resolves the minority of them today.
+
+Geometry is GeoJSON, so its positions are `[longitude, latitude]` — the
+opposite order to every other coordinate this server returns.
+
+A share stores a route as segments cut at each point its author dropped, each
+restating the previous segment's last point. Those are joined into one line and
+the repeated junction positions are dropped. Positions are reported to six
+decimals, about 0.11 m.
+
+A route of more than **3,000 positions** is thinned by Douglas-Peucker at the
+smallest tolerance that brings it under that cap — 10 m, then 25, 50, 100 —
+measured in a local equirectangular frame. `geometryDetail` reports
+`recordedPointCount`, `pointCount`, `simplified` and `toleranceMeters`, and a
+warning says the same in words. Every kept position is one the recorded line
+really passed through, and the first and last always survive. A shape still
+over the cap at 100 m fails with `geometry_too_large` rather than being
+truncated.
+
+Every response carries a fixed `unknowns` list — closure and access status,
+water, waymarking and terrain, time required. These are properties of the data,
+not of the particular route: the map records where somebody went, not whether
+going there is currently a good idea.
 
 ## Configuration
 

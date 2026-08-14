@@ -13,6 +13,7 @@ async def test_tools_list_exposes_every_registered_tool():
         tools = (await session.list_tools()).tools
 
     assert sorted(t.name for t in tools) == [
+        "get_route_details",
         "ping",
         "search_hiking_routes",
         "search_places",
