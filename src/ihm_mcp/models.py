@@ -15,7 +15,8 @@ Two rules the rest of the server leans on:
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
+from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,6 +24,13 @@ from ihm_mcp import ATTRIBUTION
 
 Latitude = Annotated[float, Field(ge=-90, le=90)]
 Longitude = Annotated[float, Field(ge=-180, le=180)]
+
+#: The two languages the map site publishes names and descriptions in.
+Language = Literal["he", "en"]
+
+#: Upstream's own difficulty scale, from the map site's route filter. Only some
+#: routes carry one — see `RouteSummary.difficulty`.
+Difficulty = Literal["Easy", "Moderate", "Hard", "Very Hard"]
 
 
 class Model(BaseModel):
@@ -77,6 +85,17 @@ class FeatureRef(Model):
     )
 
 
+def poi_url(base_url: str, ref: FeatureRef, language: Language) -> str:
+    """The map site's page for a feature — the link a person can actually open.
+
+    One definition, because every tool that returns a feature returns this link
+    and a second spelling of the format would drift from the first.
+    """
+    source = quote(ref.source, safe="")
+    identifier = quote(ref.identifier, safe="")
+    return f"{base_url.rstrip('/')}/poi/{source}/{identifier}?language={language}"
+
+
 class Attribution(Model):
     """Credit that must travel with any use of the data in a result."""
 
@@ -115,3 +134,49 @@ class PlaceResult(Model):
         "images) for this feature. Not a promise that any tool can resolve it."
     )
     ihmUrl: str = Field(description="Human-viewable page for this feature on the map site.")
+
+
+class SearchedArea(Model):
+    """The circle a search actually covered, echoed back so a caller can see
+    what a result is a result *of*."""
+
+    center: Coordinates = Field(description="Point the search was centred on.")
+    radiusKm: float = Field(description="Radius searched around that point, in kilometres.")
+
+
+class RouteSummary(Model):
+    """One mapped hiking route, as an area search can describe it.
+
+    Everything here comes from the map's own marker for the route. It says what
+    somebody recorded, not what is true on the ground today: nothing in it
+    establishes that the route is open, marked, passable, permitted, or safe.
+    """
+
+    ref: FeatureRef = Field(
+        description="Identity of the route. Pass this to a tool that resolves "
+        "route details; not every source can be resolved."
+    )
+    title: str = Field(description="The route's name in the requested language.")
+    description: str | None = Field(
+        description="The mapper's own note about the route, when there is one. "
+        "Often the only place a closure or a hazard is recorded — and undated, "
+        "so it may describe conditions from years ago."
+    )
+    difficulty: Difficulty | None = Field(
+        description="Difficulty as rated upstream. Null for most routes: the "
+        "rating is optional in the map data, and its absence says nothing about "
+        "how hard the route is."
+    )
+    lengthKm: float | None = Field(
+        description="Length of the mapped route in kilometres, rounded to 10 m. "
+        "Null when the map data carries no length."
+    )
+    startPoint: Coordinates = Field(
+        description="Where the map draws the route's start marker. Not a "
+        "verified trailhead, parking place, or public access point."
+    )
+    distanceFromSearchCenterKm: float = Field(
+        description="Great-circle distance from the search centre to "
+        "`startPoint`, rounded to 10 m. Not a walking distance."
+    )
+    ihmUrl: str = Field(description="Human-viewable page for this route on the map site.")

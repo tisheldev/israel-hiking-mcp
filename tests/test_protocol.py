@@ -12,7 +12,11 @@ async def test_tools_list_exposes_every_registered_tool():
     async with connected_session() as session:
         tools = (await session.list_tools()).tools
 
-    assert sorted(t.name for t in tools) == ["ping", "search_places"]
+    assert sorted(t.name for t in tools) == [
+        "ping",
+        "search_hiking_routes",
+        "search_places",
+    ]
 
     for tool in tools:
         # The LLM picks tools by description; never leave one empty, and never

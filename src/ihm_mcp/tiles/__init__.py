@@ -3,9 +3,10 @@
 The markers this server searches — routes and points of interest — have no
 query API. They exist only as the pre-rendered tiles the map site itself draws:
 `GET /vector/data/global_points/{z}/{x}/{y}.mvt`, zoom 10 to 14. So "what is
-near this point" becomes three jobs, one per module: work out which tiles cover
-the area (`grid`), fetch them (`reader`), and decode the Mapbox Vector Tile
-format back into coordinates (`decode`).
+near this point" becomes a job per module: work out which tiles cover the area
+(`grid`), fetch them (`reader`), decode the Mapbox Vector Tile format back into
+coordinates (`decode`), and read the values a feature carries out of upstream's
+own property bag (`properties`).
 
 The fan-out is bounded. Tile count grows with the square of the radius, and
 this server will not spend hundreds of requests on a volunteer-run map without
@@ -33,6 +34,14 @@ from ihm_mcp.tiles.grid import (
     tile_path,
     tiles_for_radius,
 )
+from ihm_mcp.tiles.properties import (
+    NAME_KEYS,
+    Properties,
+    description,
+    number,
+    text,
+    title,
+)
 from ihm_mcp.tiles.reader import (
     TileFetcher,
     points_in_radius,
@@ -46,18 +55,24 @@ __all__ = [
     "LAYERS",
     "MAX_ZOOM",
     "MIN_ZOOM",
+    "NAME_KEYS",
+    "Properties",
     "Tile",
     "TileFetcher",
     "TilePoint",
     "bounding_box",
     "covering_tiles",
     "decode_tile",
+    "description",
     "layer_points",
+    "number",
     "osm_identifier",
     "points_in_radius",
     "points_in_tiles",
     "reachable_tiles",
     "stated_location",
+    "text",
     "tile_path",
     "tiles_for_radius",
+    "title",
 ]
