@@ -14,11 +14,9 @@ import logging
 import os
 import sys
 
-from pydantic import BaseModel, Field
-
-from ihm_mcp import ATTRIBUTION, SERVER_NAME, __version__
+from ihm_mcp import SERVER_NAME, __version__
 from ihm_mcp import tools as tools  # noqa: F401  (registers the tools)
-from ihm_mcp.app import mcp, tool
+from ihm_mcp.app import mcp
 from ihm_mcp.config import ConfigurationError, get_settings
 
 logger = logging.getLogger("ihm_mcp")
@@ -38,33 +36,6 @@ def configure_logging(level: int | str | None = None) -> None:
     )
     root.addHandler(handler)
     root.setLevel(resolved)
-
-
-class PingResult(BaseModel):
-    """Liveness response carrying the server identity and its attribution."""
-
-    status: str = Field(description="Always 'ok' when the server is reachable.")
-    server: str = Field(description="MCP server name.")
-    version: str = Field(description="Server version.")
-    attribution: str = Field(description="Required data attribution notice.")
-    echo: str = Field(description="The caller's echo string, returned verbatim.")
-
-
-@tool()
-def ping(echo: str = "pong") -> PingResult:
-    """Check that the server is alive and report its version and data attribution.
-
-    This tool touches no upstream service. It is a placeholder used to verify
-    transport and tool wiring, and will be removed once the tool set is complete.
-    """
-    logger.debug("ping called with echo=%r", echo)
-    return PingResult(
-        status="ok",
-        server=SERVER_NAME,
-        version=__version__,
-        attribution=ATTRIBUTION,
-        echo=echo,
-    )
 
 
 def main() -> None:

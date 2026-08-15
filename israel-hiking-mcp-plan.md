@@ -4,7 +4,7 @@ Plan for the MVP described in `israel_hiking_mcp_mvp_prd.md`. Built as a new sta
 (`D:\Projects\IHM\israel-hiking-mcp`), no changes to the upstream `IsraelHikingMap/Site` repo.
 Work is split into 9 small PRs, each sized to teach one concept.
 
-Status: **awaiting approval — no code written yet.**
+Status: **complete — all nine PRs built and merged, 2026-08-15.**
 
 ---
 
@@ -168,6 +168,16 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 - Run the full Haifa manual acceptance scenario from a real host; fix what it surfaces; record the transcript summary in the README.
 
 **Done when:** every PRD §15 acceptance criterion is checked off.
+
+*(As built, 2026-08-15. **`activity: "None"` is not offered, contrary to this plan.** Upstream's `RoutingType` defines it and the controller maps it, but a live `type=None` answers **HTTP 500**, twice; the map site never sends it either — `routing.provider.ts` interpolates the straight line client-side and only calls the API for the other three. A straight line between two points is not worth a request to a volunteer-run service, and calling one a route would be the most misleading thing this server could return. The other three are exposed under this server's own vocabulary — `Hiking`/`Bicycle`/`4x4`, the words the tiles and `ResolvedRoute.activity` already use — mapped here to upstream's `Hike`/`Bike`/`4WD`.*
+
+*Two live findings shaped the tool. **Upstream answers an unrecognised `type=` with a walking route rather than an error** (`ConvertProfile` falls through to `Foot`; verified with `type=Swim`, which returned 143 positions of footpath). So a caller's word is never passed through, and the profile upstream names in the feature's `Name` — `Foot`/`Bike`/`Car4WheelDrive` — is checked against the one asked for, with a mismatch reported as `upstream_schema_changed`. A wording this server does not recognise is not treated as a mismatch, since a reworded sentence says nothing about which profile ran. The live test group exercises that check on all three activities, which is the only place it can be exercised. And **an unroutable pair is answered by not answering**: Haifa into the sea was still open after 40 s, where the client's timeout catches it — hence a coverage check against the same box `search_places` ranks by, before any request is spent.*
+
+*Ends are snapped: the router starts on the nearest way it knows, so each end reports `{requested, onPath, metersApart}` and says so in a warning past 100 m. Upstream's third ordinate — elevation, interpolated from a 30 m-sampled profile — is dropped rather than carried, and no climb is computed from it. `lengthKm` is measured before thinning, like every other length here. Bounds are 10 m to 100 km straight-line, refused before a request.*
+
+*The `ping` placeholder is gone, as PR 1 said it would be once the tool set was complete. The three protocol tests that used it now drive `search_places`, which reads the lifespan context before refusing a one-character query — so the stdio subprocess test still exercises the whole path without reaching a host.*
+
+*Verified live on 2026-08-15, the full Haifa scenario through a real MCP session; the transcript is in the README. Everything passed first time, and two numbers in the docs had already gone stale upstream: the Haifa Trail now resolves to 24 disconnected lines rather than the ten counted for its downtown section a day earlier, and the Israel National Trail's corridor now costs 128 tiles rather than 123. Both are the mapping moving, which is the argument for dating every measurement in the README.)*
 
 ---
 

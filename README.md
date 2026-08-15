@@ -4,14 +4,37 @@ An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
 server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
 LLM hosts.
 
-> **Status: early scaffolding (PR 8 of 9).** The server speaks MCP over stdio,
-> has its HTTP foundation — settings, typed errors, a cached and rate-capped
-> upstream client — and exposes four tools: `search_places`,
-> `search_hiking_routes`, `get_route_details` for both OSM and user-shared
-> routes, and `find_pois_along_route`. Point-to-point routing lands in PR 9.
+It answers five questions: where a place is, what hiking routes are mapped near
+it, what one of those routes actually looks like, what the map draws beside it,
+and how to get from one point to another. Every answer carries its provenance,
+what it does not establish, and — where somebody might act on it — an explicit
+caution.
+
+> **Status: MVP complete (PR 9 of 9).** Five tools, a fully offline test suite,
+> and an opt-in live one. This is a personal, portfolio-scale project pointed at
+> a volunteer-run service; read [Responsible use](#responsible-use) before
+> pointing anything automated at it.
 
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
 upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
+
+## What it will not do
+
+Worth knowing before the tool list, because it is most of what makes this
+server trustworthy:
+
+- It never claims a route is **open, permitted, passable or safe**. Nothing in
+  the data says so, and every response carries an `unknowns` list saying which
+  questions it cannot answer.
+- It never treats a **mapped water feature** as water. A spring on the map is a
+  record that somebody once saw water there, undated, in a country where most
+  water is seasonal — so every water result carries a caution of its own.
+- It never **picks for you**. Searches return ranked candidates and say what
+  they dropped; nothing is auto-selected.
+- It never **guesses at upstream**. A source it cannot resolve is refused by
+  name, and a response in a shape it does not recognise is reported as
+  `upstream_schema_changed` rather than read optimistically.
+- It never **writes anything**, anywhere. Every request it makes is a GET.
 
 ## Requirements
 
@@ -40,39 +63,26 @@ stdout is reserved for the JSON-RPC message stream. Logs go to stderr; set
 uv run pytest
 ```
 
-The suite runs fully offline.
+The suite runs **fully offline**: every upstream response is either a fixture in
+the shape a live one was observed in, or a vector tile built in-test with
+`mapbox-vector-tile`'s own encoder. No map data is committed, because none of it
+is this project's to redistribute.
 
-## Try it with MCP Inspector
+A second, opt-in group talks to the real hosts and is deselected by default:
 
 ```bash
-npx @modelcontextprotocol/inspector uv run israel-hiking-mcp
+uv run pytest -m live
 ```
 
-Set the working directory to this repository, connect, open the **Tools** tab,
-and call `ping`, then `search_places` with `query: "Haifa"` — the first result
-should be Haifa, Israel, with an `ihmUrl` that opens on the map site. Feed those
-coordinates to `search_hiking_routes` with `radiusKm: 15`, `minLengthKm: 4`,
-`maxLengthKm: 12` and you should get the Haifa Trail segments and a set of
-Nakeb routes, nearest first.
-
-Then take the `ref` of any result and pass it to `get_route_details` as
-`route`. An `OSM` one — `{"source": "OSM", "identifier": "relation_13207704"}`
-is the Haifa Trail — comes back as the trail's line, assembled from the ways it
-is mapped as; a `Users` one comes back with its author's own title, description
-and recorded climb. `{"source": "OSM", "identifier": "relation_282071"}` is the
-Israel National Trail: 2,480 ways and 41,689 recorded positions, returned as one
-continuous line thinned to fit.
-
-Finally pass the same Haifa Trail ref to `find_pois_along_route` with
-`bufferMeters: 1000` and `categories: ["Water"]`. Three water features come back
-— Vardiya Spring Well at 120 m, a waterfall on Nahal HaGiborim at 615 m and a
-pool at 960 m — each with the same `caution`, and the warning above them saying
-not to plan water on any of them. Try the Israel National Trail's ref to see the
-tile budget refuse a corridor 123 tiles long.
+That is the run which catches what a fixture cannot — a renamed field, a moved
+endpoint, a routing type upstream stopped recognising. It asserts contract
+rather than content (that a route comes back with an identity, a name, a link
+and its cautions — not *which* routes are near Haifa today), and costs about a
+dozen requests. See [tests/test_live.py](tests/test_live.py).
 
 ## Use from an MCP host
 
-Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
+**Claude Desktop** — `claude_desktop_config.json`, then restart the app:
 
 ```json
 {
@@ -85,6 +95,50 @@ Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
 }
 ```
 
+**Claude Code** — the same server, added from the command line:
+
+```bash
+claude mcp add israel-hiking -- uv --directory /absolute/path/to/israel-hiking-mcp run israel-hiking-mcp
+```
+
+**Any other MCP client** takes the same three things: the command `uv`, the
+arguments above, and stdio transport. The path must be absolute — the host does
+not run in this directory. Environment variables from the
+[Configuration](#configuration) table can be passed in an `"env"` object beside
+`"command"`.
+
+## Try it with MCP Inspector
+
+```bash
+npx @modelcontextprotocol/inspector uv run israel-hiking-mcp
+```
+
+Set the working directory to this repository, connect, and open the **Tools**
+tab. Calling the five in order walks the whole server:
+
+1. `search_places` with `query: "Haifa"` → Haifa, Israel first, with an `ihmUrl`
+   that opens on the map site, and a warning saying how many worldwide matches
+   were dropped.
+2. `search_hiking_routes` with those coordinates, `radiusKm: 15`,
+   `minLengthKm: 4`, `maxLengthKm: 12` → Haifa Trail sections, Nakeb routes and
+   shared routes, nearest first.
+3. `get_route_details` with the `ref` of any of them.
+   `{"source": "OSM", "identifier": "relation_13207704"}` is the Haifa Trail,
+   assembled from the ways it is mapped as; a `Users` ref comes back with its
+   author's own title, description and recorded climb;
+   `{"source": "OSM", "identifier": "relation_282071"}` is the Israel National
+   Trail — 2,480 ways and 41,689 recorded positions, returned as one continuous
+   line thinned to fit; and `{"source": "Nakeb", "identifier": "255"}` is
+   refused as `unsupported_source`.
+4. `find_pois_along_route` with the Haifa Trail ref, `bufferMeters: 1000` and
+   `categories: ["Water"]` → three water features, each with the same `caution`,
+   under a warning saying not to plan water on any of them. The Israel National
+   Trail's ref shows the tile budget refusing a corridor too long to scan.
+5. `route_between_points` between two points on the Carmel → a calculated line,
+   with the warning that nobody has walked it.
+
+The [acceptance run](#acceptance-run) below is that walk, with its output.
+
 ## Tools
 
 | Tool | Description |
@@ -93,7 +147,7 @@ Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
 | `search_hiking_routes` | List hiking routes mapped near a point, nearest first, with length, any difficulty rating, and a link to the map site. |
 | `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. |
 | `find_pois_along_route` | List the springs, caves, viewpoints and other mapped points within a given distance of a route's line, nearest first, each with its distance in metres. |
-| `ping` | Liveness check returning the server version and data attribution. Placeholder; removed once the tool set is complete. |
+| `route_between_points` | Calculate a path between two points for walking, cycling or 4x4, using the map site's own routing engine. The one tool here whose answer is computed rather than recorded. |
 
 ### `search_places`
 
@@ -182,9 +236,10 @@ here.
 A route is a relation of ways, each way drawn in whatever direction its mapper
 drew it and listed in whatever order the relation holds; ways whose ends
 coincide are sewn back into continuous lines. Where the mapped ways genuinely do
-not meet, the result is a `MultiLineString` and a warning says so — the Haifa
-Trail's downtown section is mapped as ten disconnected pieces. A node is refused
-as `invalid_input` without asking OSM: a point cannot be a route.
+not meet, the result is a `MultiLineString` and a warning says so — the whole
+Haifa Trail came back as 24 disconnected pieces on 2026-08-15, which is the
+mapping and not a failure to join it. A node is refused as `invalid_input`
+without asking OSM: a point cannot be a route.
 
 `/full` returns a relation's members but **not** the members of relations nested
 inside it, so a trail split into sections costs one request per section. That
@@ -285,12 +340,88 @@ When one is in the result, a warning says so.
 
 What a scan costs is set by **how long the route is**, not by the buffer: the
 corridor is fetched as map tiles, which are kilometres across. A local trail
-costs one or two; the Israel National Trail's corridor costs 123 at zoom 12,
-over the budget of 100, and fails with `search_area_too_large` saying that a
-narrower buffer would still need 119 — resolve one of its sections instead.
+costs one or two; the Israel National Trail's corridor cost 128 tiles at zoom 12
+when it was measured on 2026-08-15, over the budget of 100, and fails with
+`search_area_too_large` saying that a narrower buffer would still need 119 —
+resolve one of its sections instead.
 
 An empty list means nothing of that kind is **mapped** near this route. It is
 not evidence that there is no water, and every response says so in `unknowns`.
+
+### `route_between_points`
+
+| Argument | Type | Default | Notes |
+|---|---|---|---|
+| `start` | `{lat, lng}` | — | Where to start; `search_places` returns this shape |
+| `end` | `{lat, lng}` | — | Where to finish |
+| `activity` | `Hiking` \| `Bicycle` \| `4x4` | `Hiking` | Each uses a different set of ways |
+
+**This is the one tool here whose answer is a computation rather than a
+record.** Everything else this server returns is something a person put on a
+map. This is a line a routing engine drew just now by joining ways in a graph:
+nobody has walked it, and nothing in it knows about a gate, a fence, a firing
+zone or a stream in flood. Every response leads with a warning saying so, and it
+is not conditional on anything.
+
+Returns the path as a GeoJSON `LineString`, its `lengthKm` measured along the
+line, the `straightLineKm` between the two points for comparison, and both ends
+as `{requested, onPath, metersApart}` — because **a path starts where the router
+can, not where it was asked to**. The ends are snapped to the nearest mapped
+way, which in open country can be hundreds of metres away, and covering that
+ground is a walk the path does not include. Past 100 m either end says so in
+`warnings` too.
+
+Upstream sends an elevation with every position. It is dropped: it is
+interpolated from a profile sampled every 30 m, and the numbers worth computing
+from it — total climb, above all — would be noise dressed as data.
+
+Bounds: both points must be inside the area the map covers (about 29.3–33.4 N,
+34.2–35.9 E, the same box `search_places` ranks by), at least 10 m apart, and no
+more than **100 km** apart in a straight line. Each of those is refused as
+`invalid_input` before any request is sent — the router's graph stops where the
+map does, and a live call from Haifa into the sea was still unanswered after
+40 seconds.
+
+**`activity` is a closed set of three, deliberately.** Upstream's `type=` takes
+`Hike`, `Bike` and `4WD`, and answers anything else — a typo, a renamed
+constant — with a *walking route* rather than an error. So this server sends
+only words it knows, and then checks the profile upstream says it used against
+the one asked for: a cycling request that comes back as a footpath is reported
+as `upstream_schema_changed` rather than returned. The live test group exercises
+that check on every activity, which is the only place it can be exercised.
+
+`None` — upstream's fourth routing type, a straight line — is **not offered**. A
+live call answers HTTP 500 (checked twice, 2026-08-15), and the map site's own
+frontend never sends it either: it interpolates the straight line client-side.
+Calling one a route would be the most misleading thing this server could return.
+
+There is no `ihmUrl`: a calculated path is not a feature on the map site, and
+this server creates nothing upstream to link to.
+
+## Known limitations
+
+Things that are true of this server by design, and worth knowing before trusting
+an answer:
+
+- **Everything is a mapped fact, not a current one.** The data carries no
+  observation dates. A trail may have closed, a spring dried, a track been
+  fenced, at any point since somebody typed it in.
+- **Only hiking routes are searchable.** The same tiles carry cycling and 4x4
+  routes; `search_hiking_routes` does not return them.
+- **Two of the map's sources resolve to geometry.** `OSM` and `Users` do;
+  `Nakeb`, `iNature` and `Wikidata` appear in search results and are refused by
+  `get_route_details` with `unsupported_source`. Their `ihmUrl` still opens on
+  the map site.
+- **Area searches are bounded by a tile budget**, so a 40 km radius is the
+  largest circle and a country-length route is too long a corridor to scan.
+- **Long geometries are thinned**, and a route still too detailed at 100 m is
+  refused rather than truncated.
+- **Names come in one language or the other**, whichever the map data holds;
+  `language` is a preference, not a translation.
+- **Nothing is cached across restarts.** The cache is in memory, and a five
+  minute TTL by default.
+- **No elevation, no duration, no turn-by-turn.** The routing endpoint can
+  return instructions; this server does not ask for them.
 
 ## Configuration
 
@@ -361,3 +492,102 @@ Tool failures arrive as MCP errors whose text begins with a stable code:
 `upstream_timeout`, `upstream_unavailable` and `rate_limited` are transient; the
 rest will not be fixed by retrying. Upstream response bodies, URLs and
 tracebacks are never included in the message — those go to the stderr log.
+
+## Acceptance run
+
+The Haifa scenario, driven through a real MCP session against the live hosts on
+**2026-08-15**. Abridged — warnings and attribution are on every response.
+
+```
+search_places "Haifa"
+  Haifa | Haifa, Haifa Subdistrict, Israel | /poi/OSM/node_1656107649
+  warning: 10 match(es) outside Israel were omitted.
+
+search_hiking_routes  15 km around it, 4–12 km long
+   1.23 km  OSM/relation_13363223    8.59 km  Haifa Trail - Upper Hadar and Ramat Hadar
+   1.75 km  Nakeb/255                 7.5 km  טיול מדרגות חיפה
+   5.21 km  OSM/relation_20976850    5.87 km  Connecting Paths
+   7.18 km  Users/iXKu2M4BV5         6.46 km  נחל גלים, כלח והמבצר האחרון
+   …
+  warning: Showing the 10 nearest of 16 matching routes.
+
+get_route_details  OSM/relation_13207704
+  Haifa Trail | Hiking | 903 positions, not thinned | MultiLineString
+  warning: recorded as 24 separate lines that do not meet end to end
+
+get_route_details  Users/iXKu2M4BV5
+  נחל גלים, כלח והמבצר האחרון | 6.46 km | +256 / −251 m | 538 positions
+
+find_pois_along_route  the Haifa Trail, 1,000 m, Water
+    120 m  Water Well     Vardiya Spring Well
+    615 m  Waterfall      מפל נחל הגיבורים
+    960 m  Spring, Pond   בריכת מעיין התאנה
+  warning: 3 of these are water features. Mapped water feature — not known to
+           be flowing, reachable, permitted or safe to drink. …
+
+find_pois_along_route  the same route, 500 m, default categories
+    106 m  Natural   Cave        מערה כפולה
+    120 m  Water     Water Well  Vardiya Spring Well
+    443 m  Historic  Memorial    גדוד 22 חטיבת "כרמלי"
+
+route_between_points  32.8191,34.9984 → 32.7800,35.0200 (straight line 4.79 km)
+  Hiking    6.39 km, 367 positions, ends snapped 11 m / 5 m
+  Bicycle   7.84 km, 391 positions, ends snapped 33 m / 5 m
+  4x4       8.01 km, 417 positions, ends snapped 33 m / 5 m
+
+refusals
+  route_between_points into Cyprus     → [invalid_input] outside the area this map covers
+  route_between_points Haifa → Eilat   → [invalid_input] 364 km apart; routes up to 100 km
+  find_pois_along_route on the INT     → [search_area_too_large] 128 tiles; a narrower
+                                         buffer would still need 119
+```
+
+Two things the run showed that had already changed upstream since they were
+first measured: the Haifa Trail now resolves to 24 disconnected lines rather
+than the ten counted for its downtown section on 2026-08-14, and the Israel
+National Trail's corridor now costs 128 tiles rather than 123. Both are the
+mapping moving, not the server — and both are why the numbers in this README
+carry the date they were measured on.
+
+## Licensing and attribution
+
+Read [LICENSE-NOTICE.md](LICENSE-NOTICE.md) in full before using any output.
+The short version:
+
+- Upstream map data is **CC BY-NC-SA 3.0** (Israel Hiking Map / Mapeak) and
+  **ODbL** (OpenStreetMap). The upstream licence states that all output of the
+  work carries the same licence, so **anything this server returns is
+  non-commercial and share-alike**.
+- Every response carries an `attribution` object naming both sources and their
+  licences. **Preserve it** wherever the data is displayed or passed on. A model
+  handed data with no provenance will invent some.
+- This project is **unofficial**. It is not affiliated with, endorsed by, or
+  supported by the Israel Hiking Map project or its maintainers.
+- This repository's own code is distributed under the same CC BY-NC-SA 3.0
+  terms, to keep the combined work unambiguous.
+
+## Responsible use
+
+Both hosts this server talks to are run for the public by people who are not
+being paid to serve it. Everything below is a deliberate constraint, not an
+accident of implementation:
+
+- **Read-only.** Every request is a GET. Nothing is written, no account is
+  created, no session is held.
+- **Identified.** A descriptive User-Agent naming this project and its
+  repository goes on every request to both hosts.
+- **Bounded.** Concurrency is capped, every request has a timeout, area searches
+  have a tile budget and nested OSM relations have a request budget. A retry
+  happens once, after a transient failure, never after a 4xx.
+- **Cached.** Responses are cached in memory for the session, so a repeated tool
+  call in one conversation costs nothing upstream.
+
+Before any public deployment, shared instance, or sustained automated querying:
+**contact the Israel Hiking Map maintainers first**, and read OpenStreetMap's
+[API usage policy](https://operations.osmfoundation.org/policies/api/). A tool
+that makes it easy for a language model to fan out over somebody else's map
+tiles is exactly the kind of thing that gets an API closed for everybody.
+
+And the point the whole design turns on: **nothing here is a substitute for a
+current map, local knowledge, and carrying enough water.** An answer from this
+server is a lead to check, not a plan to follow.
