@@ -46,6 +46,14 @@ def known_difficulty(value: Any) -> Difficulty | None:
     return value if value in DIFFICULTIES else None  # type: ignore[return-value]
 
 
+#: The map's own categories for a point of interest, as its tiles publish them.
+#: `Hiking`, `Bicycle` and `4x4` are categories too, but they label routes
+#: rather than points, and `search_hiking_routes` is where those belong.
+PoiCategory = Literal["Water", "Natural", "Historic", "Viewpoint", "Camping", "Other"]
+
+POI_CATEGORIES = frozenset(get_args(PoiCategory))
+
+
 class Model(BaseModel):
     """Base for tool inputs and outputs: immutable once built."""
 
@@ -202,6 +210,84 @@ class RouteSummary(Model):
         "`startPoint`, rounded to 10 m. Not a walking distance."
     )
     ihmUrl: str = Field(description="Human-viewable page for this route on the map site.")
+
+
+class Evidence(Model):
+    """What kind of claim a result is, and how old it might be.
+
+    Every point this server returns is the same kind: somebody mapped a feature
+    at some point, and nothing recorded when. The fields are constant rather
+    than computed, and they are here to be read — a result with no provenance
+    beside it gets treated as an observation, which none of this is.
+    """
+
+    kind: Literal["mapped_feature"] = Field(
+        default="mapped_feature",
+        description="What this result rests on. `mapped_feature`: somebody "
+        "recorded this feature in map data. Not a sighting, a survey, or a "
+        "report from anyone who has been there recently.",
+    )
+    observedAt: None = Field(
+        default=None,
+        description="When the feature was last observed. Always null — the map "
+        "data carries no observation date, and this field exists to say so "
+        "rather than to leave the question unasked.",
+    )
+    freshnessKnown: Literal[False] = Field(
+        default=False,
+        description="Always false. Nothing here establishes how old the mapping "
+        "is; it may be from last week or from fifteen years ago.",
+    )
+
+
+#: The only evidence any result here rests on. One shared instance, because it
+#: is the same claim every time and the model is frozen.
+MAPPED_FEATURE = Evidence()
+
+
+class PoiAlongRoute(Model):
+    """One mapped point of interest near a route, and how far off it lies.
+
+    What the map draws, not what is there. A spring on the map is a spring
+    somebody mapped: it may be dry, fenced, on private land, or gone.
+    """
+
+    ref: FeatureRef = Field(description="Identity of the point of interest.")
+    title: str = Field(description="The feature's name in the requested language.")
+    description: str | None = Field(
+        description="The mapper's own note about the feature, when there is one "
+        "— undated, and often the only place a condition or an access problem "
+        "is recorded."
+    )
+    category: PoiCategory = Field(
+        description="The map's own category for this feature. Assigned upstream "
+        "from the feature's tags, not by this server."
+    )
+    subtype: str | None = Field(
+        description="What kind of feature within its category, in the map "
+        "site's own words — 'Spring, Pond', 'Cistern', 'Cave'. Read from the "
+        "icon the map draws, so it is null where that icon has no published "
+        "label."
+    )
+    coordinates: Coordinates = Field(
+        description="Where the map places the feature's marker. A feature that "
+        "is really a line or an area — a stream, a nature reserve — is marked "
+        "at one point of it, so this is not the nearest part of it to the route."
+    )
+    distanceFromRouteMeters: int = Field(
+        description="Straight-line distance from the route's drawn line to this "
+        "marker, in whole metres. Not a walking distance, and it says nothing "
+        "about whether anything leads there or whether the ground between is "
+        "passable."
+    )
+    evidence: Evidence = Field(
+        description="What this result rests on, and what it cannot establish."
+    )
+    caution: str | None = Field(
+        description="A safety note that belongs with this feature wherever it is "
+        "repeated. Not optional context — relay it whenever you relay the point."
+    )
+    ihmUrl: str = Field(description="Human-viewable page for this feature on the map site.")
 
 
 #: One GeoJSON position: longitude first, then latitude. The opposite order to

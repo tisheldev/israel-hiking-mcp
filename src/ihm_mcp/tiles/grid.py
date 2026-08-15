@@ -1,5 +1,10 @@
 """Which tiles cover a search area.
 
+Two shapes of search live here: a circle around a point, and the corridor along
+a route. Both come down to the same two steps — take the tiles overlapping the
+box, then drop the ones the shape itself does not reach — because the box around
+either shape holds a lot of ground nobody asked about.
+
 Pure geometry: nothing here talks to the network.
 """
 
@@ -11,6 +16,7 @@ import mercantile
 
 from ihm_mcp.errors import InvalidInputError, SearchAreaTooLargeError
 from ihm_mcp.models import BoundingBox, Coordinates
+from ihm_mcp.spatial import Corridor
 
 Tile = mercantile.Tile
 
@@ -29,6 +35,9 @@ KM_PER_DEGREE = 111.32
 RADIUS_MARGIN = 1.01
 #: Below this, a search is asking about a single street corner.
 MIN_SUGGESTED_RADIUS_KM = 0.1
+#: The narrowest corridor a caller can ask for, and so the cheapest one there
+#: is — what a too-long route is measured against before blaming the buffer.
+MIN_BUFFER_METERS = 25.0
 
 
 def tile_path(tile: Tile) -> str:
@@ -59,6 +68,52 @@ def reachable_tiles(center: Coordinates, radius_km: float, zoom: int) -> list[Ti
     asked for. At 40 km and zoom 12 that is 98 tiles against 121."""
     box = bounding_box(center, radius_km)
     return [tile for tile in covering_tiles(box, zoom) if reaches(center, radius_km, tile)]
+
+
+def tiles_for_corridor(
+    corridor: Corridor, buffer_meters: float, *, zoom: int = DEFAULT_ZOOM, max_tiles: int
+) -> list[Tile]:
+    """The tiles covering everything within `buffer_meters` of a route.
+
+    The route's length sets the floor on what this costs: a tile is kilometres
+    across and the widest buffer here is two, so a trail long enough to cross a
+    hundred tiles crosses them at any buffer. Where that is the case the error
+    says so, rather than suggesting a narrower corridor that would not help.
+    """
+    tiles = corridor_tiles(corridor, buffer_meters, zoom)
+    if len(tiles) > max_tiles:
+        narrowest = len(corridor_tiles(corridor, MIN_BUFFER_METERS, zoom))
+        hint = (
+            f"A narrower `bufferMeters` would still need {narrowest} tiles — this "
+            "route is simply long. Resolve a section of it instead."
+            if narrowest > max_tiles
+            else "Try a narrower `bufferMeters`."
+        )
+        raise SearchAreaTooLargeError(
+            f"The corridor along this route needs {len(tiles)} map tiles at zoom "
+            f"{zoom}, and this server fetches at most {max_tiles} per call.",
+            hint=hint,
+        )
+    return tiles
+
+
+def corridor_tiles(corridor: Corridor, buffer_meters: float, zoom: int) -> list[Tile]:
+    """The tiles the corridor itself touches, not the ones its box does: a route
+    running diagonally leaves most of that box empty."""
+    reach = buffer_meters * RADIUS_MARGIN
+    return [
+        tile
+        for tile in covering_tiles(corridor.bounds(buffer_meters), zoom)
+        if corridor.reaches(tile_box(tile), reach)
+    ]
+
+
+def tile_box(tile: Tile) -> BoundingBox:
+    """One tile's own extent, in the terms the rest of this server speaks."""
+    bounds = mercantile.bounds(tile)
+    return BoundingBox(
+        minLat=bounds.south, minLng=bounds.west, maxLat=bounds.north, maxLng=bounds.east
+    )
 
 
 def covering_tiles(box: BoundingBox, zoom: int) -> list[Tile]:

@@ -1,10 +1,11 @@
 """Distances and shapes, for the numbers and lines a caller is shown.
 
-Two jobs live here. Distance on the earth — kept apart from `tiles.grid`, which
-has a flat-earth distance of its own: that one picks tiles and may err towards
-fetching one too many, while these numbers are reported, compared against a
-caller's radius, and sorted on. And the geometry of a route: assembling the
-line, and cutting it down to something a model can actually read.
+Three jobs live here. Distance on the earth — kept apart from `tiles.grid`,
+which has a flat-earth distance of its own: that one picks tiles and may err
+towards fetching one too many, while these numbers are reported, compared
+against a caller's radius, and sorted on. The geometry of a route: assembling
+the line, and cutting it down to something a model can actually read. And
+measuring other things against that line, which is what `Corridor` is for.
 
 Anything metric is computed in a **local equirectangular** frame — degrees
 scaled to metres around the latitude in question. At this country's extent the
@@ -16,11 +17,13 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 import shapely
 
 from ihm_mcp.errors import GeometryTooLargeError
 from ihm_mcp.models import (
+    BoundingBox,
     Coordinates,
     GeometryDetail,
     LineString,
@@ -236,6 +239,36 @@ def metres_per_degree(latitude: float) -> tuple[float, float]:
     return per_degree * math.cos(math.radians(latitude)), per_degree
 
 
+@dataclass(frozen=True)
+class Frame:
+    """Degrees scaled to metres around one latitude.
+
+    Everything metric here happens inside one of these: a plane where a
+    coordinate pair is metres, so Shapely's own distances and tolerances come
+    out in metres without a projection library. It is only true near the
+    latitude it was built for, which is why a frame belongs to a geometry
+    rather than to the module.
+    """
+
+    east: float
+    north: float
+
+    @classmethod
+    def around(cls, latitude: float) -> Frame:
+        east, north = metres_per_degree(latitude)
+        return cls(east=east, north=north)
+
+    def metres(self, position: Position) -> tuple[float, float]:
+        lng, lat = position
+        return lng * self.east, lat * self.north
+
+    def degrees(self, x: float, y: float) -> Position:
+        return (
+            round(x / self.east, COORDINATE_DECIMALS),
+            round(y / self.north, COORDINATE_DECIMALS),
+        )
+
+
 def middle_latitude(geometry: RouteGeometry) -> float:
     """The latitude to scale this geometry's metres by — the middle of its
     extent, so the error is split between its ends rather than piled at one."""
@@ -255,15 +288,12 @@ def simplify_line(
     if len(line) < 3:
         return list(line)
 
-    east, north = metres_per_degree(latitude)
-    metric = shapely.LineString([(lng * east, lat * north) for lng, lat in line])
+    frame = Frame.around(latitude)
+    metric = shapely.LineString([frame.metres(position) for position in line])
     # `preserve_topology=False` is plain Douglas-Peucker. The guard it turns off
     # keeps a line from crossing itself, which a route is free to do anyway.
     thinned = metric.simplify(tolerance_meters, preserve_topology=False)
-    return [
-        (round(x / east, COORDINATE_DECIMALS), round(y / north, COORDINATE_DECIMALS))
-        for x, y in thinned.coords
-    ]
+    return [frame.degrees(x, y) for x, y in thinned.coords]
 
 
 def simplify_geometry(
@@ -320,3 +350,74 @@ def fit_geometry(
         f"{max_points:,} this server returns after simplifying to "
         f"{tolerances[-1]:g} m. Open it on the map site instead."
     )
+
+
+# --- measuring against a route -----------------------------------------------
+
+
+def bounds_of(geometry: RouteGeometry) -> BoundingBox:
+    """The smallest lat/lng box holding the whole geometry."""
+    positions_in = [position for line in lines_of(geometry) for position in line]
+    lngs = [lng for lng, _ in positions_in]
+    lats = [lat for _, lat in positions_in]
+    return BoundingBox(
+        minLat=min(lats), minLng=min(lngs), maxLat=max(lats), maxLng=max(lngs)
+    )
+
+
+class Corridor:
+    """A route's line, ready to measure other things against.
+
+    The line is held once in a metric `Frame` built around the route's own
+    middle latitude, so every distance out of it is metres and every query
+    reuses the same projection. The route stays a line rather than becoming a
+    buffered polygon: "how far is this from the route" is the number a caller
+    is shown, and a polygon would only be able to answer "inside or not".
+
+    Distances are true perpendicular distances to the drawn line — the shortest
+    way to it in a straight line, over whatever lies between. Nothing here knows
+    about slope, cliffs, fences or whether a path leads there.
+    """
+
+    def __init__(self, geometry: RouteGeometry) -> None:
+        self.frame = Frame.around(middle_latitude(geometry))
+        self.line = shapely.MultiLineString(
+            [
+                [self.frame.metres(position) for position in line]
+                for line in lines_of(geometry)
+            ]
+        )
+        self.box = bounds_of(geometry)
+
+    def metres_to(self, point: Coordinates) -> float:
+        """How far `point` lies from the nearest part of the route, in metres."""
+        return shapely.distance(
+            self.line, shapely.Point(self.frame.metres((point.lng, point.lat)))
+        )
+
+    def bounds(self, buffer_meters: float) -> BoundingBox:
+        """The box holding everything within `buffer_meters` of the route.
+
+        Overshoots at the corners, like any box around a shape; `reaches` is
+        what decides whether a particular part of it is really near the line.
+        """
+        lat_span = buffer_meters / self.frame.north
+        # Longitude is scaled at the route's middle latitude, so pad by the
+        # edge's own shorter degree instead — otherwise the far corners fall
+        # outside the box that is supposed to contain them.
+        outermost = min(max(abs(self.box.minLat), abs(self.box.maxLat)) + lat_span, 89.0)
+        lng_span = buffer_meters / metres_per_degree(outermost)[0]
+        return BoundingBox(
+            minLat=max(self.box.minLat - lat_span, -90.0),
+            minLng=max(self.box.minLng - lng_span, -180.0),
+            maxLat=min(self.box.maxLat + lat_span, 90.0),
+            maxLng=min(self.box.maxLng + lng_span, 180.0),
+        )
+
+    def reaches(self, box: BoundingBox, buffer_meters: float) -> bool:
+        """Whether any part of `box` lies within `buffer_meters` of the route."""
+        left, bottom = self.frame.metres((box.minLng, box.minLat))
+        right, top = self.frame.metres((box.maxLng, box.maxLat))
+        return shapely.distance(self.line, shapely.box(left, bottom, right, top)) <= (
+            buffer_meters
+        )
