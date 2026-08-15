@@ -26,12 +26,16 @@ from ihm_mcp.tiles.decode import (
 from ihm_mcp.tiles.grid import (
     DEFAULT_ZOOM,
     MAX_ZOOM,
+    MIN_BUFFER_METERS,
     MIN_ZOOM,
     Tile,
     bounding_box,
+    corridor_tiles,
     covering_tiles,
     reachable_tiles,
+    tile_box,
     tile_path,
+    tiles_for_corridor,
     tiles_for_radius,
 )
 from ihm_mcp.tiles.properties import (
@@ -44,6 +48,7 @@ from ihm_mcp.tiles.properties import (
 )
 from ihm_mcp.tiles.reader import (
     TileFetcher,
+    points_along_corridor,
     points_in_radius,
     points_in_tiles,
 )
@@ -54,6 +59,7 @@ __all__ = [
     "DEFAULT_ZOOM",
     "LAYERS",
     "MAX_ZOOM",
+    "MIN_BUFFER_METERS",
     "MIN_ZOOM",
     "NAME_KEYS",
     "Properties",
@@ -61,18 +67,22 @@ __all__ = [
     "TileFetcher",
     "TilePoint",
     "bounding_box",
+    "corridor_tiles",
     "covering_tiles",
     "decode_tile",
     "description",
     "layer_points",
     "number",
     "osm_identifier",
+    "points_along_corridor",
     "points_in_radius",
     "points_in_tiles",
     "reachable_tiles",
     "stated_location",
     "text",
+    "tile_box",
     "tile_path",
+    "tiles_for_corridor",
     "tiles_for_radius",
     "title",
 ]

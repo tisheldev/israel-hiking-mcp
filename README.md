@@ -4,11 +4,11 @@ An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
 server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
 LLM hosts.
 
-> **Status: early scaffolding (PR 7 of 9).** The server speaks MCP over stdio,
+> **Status: early scaffolding (PR 8 of 9).** The server speaks MCP over stdio,
 > has its HTTP foundation — settings, typed errors, a cached and rate-capped
-> upstream client — and exposes three tools: `search_places`,
-> `search_hiking_routes` and `get_route_details`, which now resolves both OSM
-> routes and user-shared ones. POIs along a route and routing land in later PRs.
+> upstream client — and exposes four tools: `search_places`,
+> `search_hiking_routes`, `get_route_details` for both OSM and user-shared
+> routes, and `find_pois_along_route`. Point-to-point routing lands in PR 9.
 
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
 upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
@@ -63,6 +63,13 @@ and recorded climb. `{"source": "OSM", "identifier": "relation_282071"}` is the
 Israel National Trail: 2,480 ways and 41,689 recorded positions, returned as one
 continuous line thinned to fit.
 
+Finally pass the same Haifa Trail ref to `find_pois_along_route` with
+`bufferMeters: 1000` and `categories: ["Water"]`. Three water features come back
+— Vardiya Spring Well at 120 m, a waterfall on Nahal HaGiborim at 615 m and a
+pool at 960 m — each with the same `caution`, and the warning above them saying
+not to plan water on any of them. Try the Israel National Trail's ref to see the
+tile budget refuse a corridor 123 tiles long.
+
 ## Use from an MCP host
 
 Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
@@ -85,6 +92,7 @@ Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
 | `search_places` | Find places by name (Hebrew or English) and return ranked candidate coordinates, each with a `{source, identifier}` ref and a link to the map site. |
 | `search_hiking_routes` | List hiking routes mapped near a point, nearest first, with length, any difficulty rating, and a link to the map site. |
 | `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. |
+| `find_pois_along_route` | List the springs, caves, viewpoints and other mapped points within a given distance of a route's line, nearest first, each with its distance in metres. |
 | `ping` | Liveness check returning the server version and data attribution. Placeholder; removed once the tool set is complete. |
 
 ### `search_places`
@@ -217,6 +225,73 @@ water, waymarking and terrain, time required. These are properties of the data,
 not of the particular route: the map records where somebody went, not whether
 going there is currently a good idea.
 
+### `find_pois_along_route`
+
+| Argument | Type | Default | Notes |
+|---|---|---|---|
+| `route` | `{source, identifier}` | — | The same ref `get_route_details` takes |
+| `bufferMeters` | number | `500` | 25–2000, straight-line distance to the route's drawn line |
+| `categories` | list of category \| null | `null` | Defaults to Water, Natural, Historic, Viewpoint, Camping |
+| `language` | `he` \| `en` | `en` | Language of names, descriptions and the `ihmUrl` link |
+| `limit` | integer | `20` | 1–50 |
+
+Resolves the route through the same adapters as `get_route_details`, then
+returns the map's points of interest within `bufferMeters` of its line, nearest
+first. Each carries `category`, `subtype`, `coordinates`,
+`distanceFromRouteMeters` and a link to the map site.
+
+**Water results are the ones people act on, and the ones to be careful with.**
+A spring, cistern, waterhole or pool here is a feature somebody recorded on a
+map at an unrecorded date. Nothing establishes that it is flowing, reachable,
+permitted or safe to drink, and most water in this country is seasonal. Every
+water result carries that in a `caution` field of its own — not only in
+`warnings`, so that a summary keeping the points and dropping the warnings still
+carries it — and a warning repeats it at the head of the list.
+
+Distances are straight lines from the route's **recorded** line, unthinned: this
+tool returns numbers about a route rather than the route itself, so nothing is
+simplified first. They are not walking distances, and say nothing about whether
+anything leads there — a spring 80 m off the trail may be 80 m down a cliff.
+
+**Categories are upstream's, not this server's.** The plan for this tool was to
+port the map site's `osm-tags.service.ts` mapping from raw OSM tags to
+categories; a live zoom-12 tile settles it differently. Sampled over Haifa on
+2026-08-15, every feature carried `poiCategory`, `poiIcon` and `poiIconColor`
+and **not one raw OSM tag** — the tag mapping has already run by the time the
+tileset is cut. So the category is read, and only the naming is ported:
+`poiIcon` back to the label the map site puts on that icon in its own POI
+category list. `subtype` is null for an icon that list does not name, including
+`icon-search`, upstream's fallback for a feature it recognised only well enough
+to draw.
+
+| Category | Subtypes |
+|---|---|
+| `Water` | Spring, Pond · Waterfall · Waterhole · Water Well · Cistern · Stream, River |
+| `Natural` | Cave · Tree · Flowers · Peak, Ridge, Valley |
+| `Historic` | Ruins · Archaeological Site · Memorial |
+| `Viewpoint` | Viewpoint |
+| `Camping` | Picnic Area · Campsite · Alpine Hut |
+| `Other` | Place · Attraction · Artwork · Synagogue · Church · Mosque · Place of Worship · Accommodation · Nature Reserve, National Park · iNature Entry · Wikipedia Entry |
+
+`Other` is upstream's bucket for whatever its mapping did not place, and it
+outnumbers everything else in a built-up area — 111 of 168 features in a
+sampled Haifa tile. It is therefore excluded unless asked for. The route
+categories (`Hiking`, `Bicycle`, `4x4`) share those tiles and are never
+returned here; `search_hiking_routes` is where they belong.
+
+A **stream or river** is mapped as a line and marked at one point of it, so its
+distance is to that mark rather than to wherever the route crosses the water.
+When one is in the result, a warning says so.
+
+What a scan costs is set by **how long the route is**, not by the buffer: the
+corridor is fetched as map tiles, which are kilometres across. A local trail
+costs one or two; the Israel National Trail's corridor costs 123 at zoom 12,
+over the budget of 100, and fails with `search_area_too_large` saying that a
+narrower buffer would still need 119 — resolve one of its sections instead.
+
+An empty list means nothing of that kind is **mapped** near this route. It is
+not evidence that there is no water, and every response says so in `unknowns`.
+
 ## Configuration
 
 All settings are environment variables, read once at startup — an invalid value
@@ -252,9 +327,13 @@ all sixteen of each tile's zoom-14 children found **no features dropped** at the
 lower zoom (817 features in the densest sample, 0 missing). The tileset is not
 thinned by zoom, so a zoom-12 search sees every marker a zoom-14 one would.
 
+The same budget covers the corridor along a route, where the shape is a line
+rather than a circle and only the tiles the line itself comes near are fetched —
+the box around a route running diagonally holds more than twice as many.
+
 Past the budget, a search fails with `search_area_too_large` naming the tile
-count, the limit, and a radius that would have worked, rather than silently
-returning part of the area.
+count, the limit, and either a radius that would have worked or, for a route too
+long for any buffer, that fact. It never silently returns part of the area.
 
 ### Request behaviour
 

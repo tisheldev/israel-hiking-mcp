@@ -10,8 +10,15 @@ import anyio
 
 from ihm_mcp.errors import IhmError, UpstreamNotFound
 from ihm_mcp.models import Coordinates
+from ihm_mcp.spatial import Corridor
 from ihm_mcp.tiles.decode import TilePoint, decode_tile
-from ihm_mcp.tiles.grid import DEFAULT_ZOOM, Tile, tile_path, tiles_for_radius
+from ihm_mcp.tiles.grid import (
+    DEFAULT_ZOOM,
+    Tile,
+    tile_path,
+    tiles_for_corridor,
+    tiles_for_radius,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +45,24 @@ async def points_in_radius(
     tool, which knows what the distance means for its own results.
     """
     tiles = tiles_for_radius(center, radius_km, zoom=zoom, max_tiles=max_tiles)
+    return await points_in_tiles(client, tiles)
+
+
+async def points_along_corridor(
+    client: TileFetcher,
+    corridor: Corridor,
+    buffer_meters: float,
+    *,
+    max_tiles: int,
+    zoom: int = DEFAULT_ZOOM,
+) -> list[TilePoint]:
+    """Every distinct marker in the tiles the route's corridor touches.
+
+    Those tiles reach well past the buffer — a tile is kilometres across and a
+    corridor is metres — so the buffer is applied again by the tool, to the
+    distance it reports.
+    """
+    tiles = tiles_for_corridor(corridor, buffer_meters, zoom=zoom, max_tiles=max_tiles)
     return await points_in_tiles(client, tiles)
 
 
