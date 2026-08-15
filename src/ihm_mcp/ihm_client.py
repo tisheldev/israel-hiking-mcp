@@ -161,7 +161,9 @@ class UpstreamClient:
         status = response.status_code
         if status >= 500:
             raise UpstreamUnavailableError(f"{self.host} returned HTTP {status} for {path}.")
-        if status == 404:
+        # 410 alongside 404: OpenStreetMap answers Gone for an element somebody
+        # deleted, which to a caller asking for it is the same missing thing.
+        if status in (404, 410):
             raise UpstreamNotFound(path)
         if status == 429:
             retry_after = response.headers.get("retry-after", "").strip()

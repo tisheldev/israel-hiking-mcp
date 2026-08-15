@@ -4,12 +4,11 @@ An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
 server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
 LLM hosts.
 
-> **Status: early scaffolding (PR 6 of 9).** The server speaks MCP over stdio,
+> **Status: early scaffolding (PR 7 of 9).** The server speaks MCP over stdio,
 > has its HTTP foundation — settings, typed errors, a cached and rate-capped
 > upstream client — and exposes three tools: `search_places`,
-> `search_hiking_routes` and `get_route_details`, the last of which resolves
-> user-shared routes only. OSM route geometry, POIs along a route, and routing
-> all land in later PRs.
+> `search_hiking_routes` and `get_route_details`, which now resolves both OSM
+> routes and user-shared ones. POIs along a route and routing land in later PRs.
 
 See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
 upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
@@ -56,10 +55,13 @@ coordinates to `search_hiking_routes` with `radiusKm: 15`, `minLengthKm: 4`,
 `maxLengthKm: 12` and you should get the Haifa Trail segments and a set of
 Nakeb routes, nearest first.
 
-Then take the `ref` of any result whose `source` is `Users` and pass it to
-`get_route_details` as `route` — it comes back with the route's line, its
-author's own title and description, and the climb they recorded. A ref with
-`source: "OSM"` answers `unsupported_source` for now, by design.
+Then take the `ref` of any result and pass it to `get_route_details` as
+`route`. An `OSM` one — `{"source": "OSM", "identifier": "relation_13207704"}`
+is the Haifa Trail — comes back as the trail's line, assembled from the ways it
+is mapped as; a `Users` one comes back with its author's own title, description
+and recorded climb. `{"source": "OSM", "identifier": "relation_282071"}` is the
+Israel National Trail: 2,480 ways and 41,689 recorded positions, returned as one
+continuous line thinned to fit.
 
 ## Use from an MCP host
 
@@ -82,7 +84,7 @@ Claude Desktop (`claude_desktop_config.json`) or any generic MCP client:
 |---|---|
 | `search_places` | Find places by name (Hebrew or English) and return ranked candidate coordinates, each with a `{source, identifier}` ref and a link to the map site. |
 | `search_hiking_routes` | List hiking routes mapped near a point, nearest first, with length, any difficulty rating, and a link to the map site. |
-| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. User-shared routes only for now. |
+| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. |
 | `ping` | Liveness check returning the server version and data attribution. Placeholder; removed once the tool set is complete. |
 
 ### `search_places`
@@ -148,25 +150,58 @@ often the only place a closure or hazard is recorded.
 | `route` | `{source, identifier}` | — | The `ref` object from a `search_hiking_routes` result |
 | `language` | `he` \| `en` | `en` | Preferred language where the source holds both |
 
-Returns the route's line as GeoJSON (`LineString`, or `MultiLineString` when a
-share holds several unjoined lines), with `startPoint`, `title`,
-`description`, `activity`, `difficulty`, `lengthKm`, `ascentMeters`,
-`descentMeters` and a link to the map site.
+Returns the route's line as GeoJSON (`LineString`, or `MultiLineString` when the
+route's parts do not join up), with `startPoint`, `title`, `description`,
+`activity`, `difficulty`, `lengthKm`, `ascentMeters`, `descentMeters` and a link
+to the map site.
 
-**Only `source: "Users"` resolves.** Routes shared by users on the map site come
-from `/api/urls/{id}`. Every other source — `OSM`, `Nakeb`, `iNature`,
-`Wikidata` — returns `unsupported_source` rather than a guessed URL; OSM
-geometry arrives in a later PR, and the `ihmUrl` from the search result opens
-any of them on the map site meanwhile. Note that most routes in a search are
-OSM ones, so this tool resolves the minority of them today.
+**Two sources resolve: `OSM` and `Users`.** `Nakeb`, `iNature` and `Wikidata`
+return `unsupported_source` rather than a guessed URL; the `ihmUrl` from the
+search result opens any of them on the map site meanwhile.
 
 Geometry is GeoJSON, so its positions are `[longitude, latitude]` — the
 opposite order to every other coordinate this server returns.
 
+#### `source: "OSM"`
+
+Identifiers look like `relation_282071`, `way_12345` or `node_67890`, which is
+what the search returns. Geometry comes from **`api.openstreetmap.org`
+directly**, as the map site's own frontend does — a second host, under
+[OSM's usage policy](https://operations.osmfoundation.org/policies/api/), with
+the same identifying User-Agent and the same caching as every other request
+here.
+
+A route is a relation of ways, each way drawn in whatever direction its mapper
+drew it and listed in whatever order the relation holds; ways whose ends
+coincide are sewn back into continuous lines. Where the mapped ways genuinely do
+not meet, the result is a `MultiLineString` and a warning says so — the Haifa
+Trail's downtown section is mapped as ten disconnected pieces. A node is refused
+as `invalid_input` without asking OSM: a point cannot be a route.
+
+`/full` returns a relation's members but **not** the members of relations nested
+inside it, so a trail split into sections costs one request per section. That
+recursion is bounded by `IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL` (16), follows
+sections breadth-first, visits each relation once however often it is
+referenced, and past the budget fails with `geometry_too_large` rather than
+returning part of a trail as if it were all of it.
+
+Everything reported besides the geometry is an OSM tag, so most of it is absent
+on most routes: `lengthKm` comes from `distance` only, `ascentMeters` and
+`descentMeters` from `ascent`/`descent`, `difficulty` from a `difficulty` tag
+that happens to name one of upstream's four grades, and `activity` from `route`
+in the map site's own words (`hiking`/`foot` → Hiking, `bicycle`/`mtb` →
+Bicycle, `road` + `scenic=yes` → 4x4). The non-standard `length` tag is
+deliberately not read — a sampled Haifa Trail section tags `length=3` where the
+map's own computed length is 8.59 km. For length, use the `lengthKm` of the
+search result that produced the ref.
+
+#### `source: "Users"`
+
 A share stores a route as segments cut at each point its author dropped, each
 restating the previous segment's last point. Those are joined into one line and
-the repeated junction positions are dropped. Positions are reported to six
-decimals, about 0.11 m.
+the repeated junction positions are dropped. A share holding several routes
+comes back as a `MultiLineString`. Positions are reported to six decimals, about
+0.11 m.
 
 A route of more than **3,000 positions** is thinned by Douglas-Peucker at the
 smallest tolerance that brings it under that cap — 10 m, then 25, 50, 100 —
@@ -191,12 +226,14 @@ inside a tool call.
 | Variable | Default | Range | Purpose |
 |---|---|---|---|
 | `IHM_BASE_URL` | `https://mapeak.com` | http(s) URL | API and tile host |
+| `IHM_OSM_API_URL` | `https://api.openstreetmap.org/api/0.6/` | http(s) URL | Where OSM route geometry is fetched from |
 | `IHM_REQUEST_TIMEOUT_SECONDS` | `10` | 0 < x ≤ 60 | Applied to connect, read, write and pool |
 | `IHM_USER_AGENT` | `israel-hiking-mcp/<version> (+repo url)` | non-empty | Sent on every request |
 | `IHM_CACHE_TTL_SECONDS` | `300` | 0–86400 | `0` disables caching |
 | `IHM_CACHE_MAX_ENTRIES` | `512` | ≥ 1 | Bounds the in-memory response cache |
 | `IHM_MAX_CONCURRENT_REQUESTS` | `4` | 1–16 | Simultaneous upstream connections |
 | `IHM_MAX_TILES_PER_TOOL_CALL` | `100` | 1–500 | Tile budget for area searches |
+| `IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL` | `16` | 1–64 | Request budget for nested OSM relations |
 | `IHM_LOG_LEVEL` | `INFO` | log level | Logs go to stderr only |
 
 ### Area searches and the tile budget
@@ -226,6 +263,13 @@ short-lived in-memory cache. A request is retried **once**, and only after a
 timeout, a connection failure, or a 5xx; 4xx responses are never retried and
 failures are never cached. This is a personal-scale tool pointed at a
 volunteer-run service — please keep it that way.
+
+Two hosts are contacted, each with its own connection pool and cache:
+`mapeak.com` for search, tiles and shared routes, and `api.openstreetmap.org`
+for OSM route geometry. Both see the same identifying User-Agent. OSM's
+[API usage policy](https://operations.osmfoundation.org/policies/api/) applies
+to the second, and one deeply nested relation is the only thing here that can
+cost more than a handful of requests — hence its own budget above.
 
 ### Error codes
 

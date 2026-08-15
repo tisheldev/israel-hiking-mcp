@@ -377,13 +377,13 @@ async def test_a_shape_no_tolerance_can_shrink_is_refused_not_truncated(
 # --- refs this server cannot resolve -----------------------------------------
 
 
-@pytest.mark.parametrize("source", ["OSM", "Nakeb", "iNature", "Wikidata", "made-up"])
+@pytest.mark.parametrize("source", ["Nakeb", "iNature", "Wikidata", "made-up"])
 async def test_a_source_with_no_adapter_is_refused_by_name(source: str):
     text = await call_expecting_error({"source": source, "identifier": "relation_282071"})
 
     assert "[unsupported_source]" in text
     assert source in text
-    assert "Users" in text
+    assert "OSM, Users" in text
 
 
 async def test_a_share_that_does_not_exist_is_route_not_found(

@@ -34,12 +34,19 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, frozen=True, extra="ignore")
 
     base_url: HttpUrl = HttpUrl("https://mapeak.com")
+    #: OpenStreetMap's own API. Route geometry for `source: "OSM"` comes from
+    #: here rather than from the map site, which is what its frontend does too —
+    #: so this server talks to a second host, under a second usage policy.
+    osm_api_url: HttpUrl = HttpUrl("https://api.openstreetmap.org/api/0.6/")
     request_timeout_seconds: Annotated[float, Field(gt=0, le=60)] = 10.0
     user_agent: Annotated[str, Field(min_length=1)] = USER_AGENT
     cache_ttl_seconds: Annotated[int, Field(ge=0, le=86_400)] = 300
     cache_max_entries: Annotated[int, Field(ge=1, le=100_000)] = 512
     max_concurrent_requests: Annotated[int, Field(ge=1, le=16)] = 4
     max_tiles_per_tool_call: Annotated[int, Field(ge=1, le=500)] = 100
+    #: A route relation can be built from other relations, each of which is a
+    #: request of its own; this bounds one `get_route_details` call.
+    max_osm_requests_per_tool_call: Annotated[int, Field(ge=1, le=64)] = 16
 
 
 def load_settings() -> Settings:

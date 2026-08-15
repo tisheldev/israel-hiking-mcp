@@ -23,10 +23,12 @@ def test_defaults_are_conservative():
     settings = load_settings()
 
     assert str(settings.base_url).startswith("https://mapeak.com")
+    assert str(settings.osm_api_url).startswith("https://api.openstreetmap.org/api/0.6")
     assert settings.request_timeout_seconds == 10.0
     assert settings.cache_ttl_seconds == 300
     assert settings.max_concurrent_requests == 4
     assert settings.max_tiles_per_tool_call == 100
+    assert settings.max_osm_requests_per_tool_call == 16
 
 
 def test_user_agent_identifies_the_project_and_version():
@@ -63,7 +65,10 @@ def test_environment_overrides_are_parsed_and_coerced(monkeypatch: pytest.Monkey
         ("IHM_CACHE_TTL_SECONDS", "-1"),
         ("IHM_CACHE_MAX_ENTRIES", "0"),
         ("IHM_MAX_TILES_PER_TOOL_CALL", "100000"),
+        ("IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL", "0"),
+        ("IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL", "1000"),
         ("IHM_BASE_URL", "not-a-url"),
+        ("IHM_OSM_API_URL", "api.openstreetmap.org"),
         ("IHM_USER_AGENT", ""),
     ],
 )
