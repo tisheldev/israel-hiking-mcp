@@ -21,9 +21,17 @@ async def test_lifespan_shares_one_client_per_upstream_and_closes_them_on_shutdo
     assert all(client.http.is_closed is True for client in clients)
 
 
-async def test_tools_still_work_with_the_lifespan_wired_in():
-    """The in-memory helper runs the real startup path — this is the smoke test."""
-    async with connected_session() as session:
-        result = await session.call_tool("ping", {})
+async def test_a_tool_call_reaches_the_tool_body_with_the_lifespan_wired_in():
+    """The in-memory helper runs the real startup path — this is the smoke test.
 
-    assert result.isError is False
+    A tool reads the lifespan context before it validates its arguments, so a
+    query the tool itself refuses proves the wiring without a request going
+    anywhere: a lifespan that failed would answer with something else entirely.
+    """
+    async with connected_session() as session:
+        result = await session.call_tool("search_places", {"query": "a"})
+
+    assert result.isError is True
+    assert "[invalid_input]" in "\n".join(
+        getattr(block, "text", "") for block in result.content
+    )

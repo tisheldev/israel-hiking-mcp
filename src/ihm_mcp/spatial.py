@@ -15,6 +15,7 @@ here claims, and it costs no projection library.
 
 from __future__ import annotations
 
+import itertools
 import math
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -77,6 +78,22 @@ def haversine_km(origin: Coordinates, point: Coordinates) -> float:
         + math.cos(origin_lat) * math.cos(point_lat) * math.sin(delta_lng / 2) ** 2
     )
     return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(haversine_of_angle))
+
+
+def line_length_km(line: Sequence[Position]) -> float:
+    """How far a line runs over the ground, in kilometres.
+
+    Great-circle distance summed along it, so it is the length of the line as
+    drawn — not of the walk it stands for. A recorded track measures longer than
+    the trail it followed, a calculated one measures shorter than either, and
+    neither of them knows about slope.
+    """
+    return sum(
+        haversine_km(
+            Coordinates(lat=start[1], lng=start[0]), Coordinates(lat=end[1], lng=end[0])
+        )
+        for start, end in itertools.pairwise(line)
+    )
 
 
 def reported_km(kilometres: float) -> float:

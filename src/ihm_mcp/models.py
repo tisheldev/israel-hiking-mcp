@@ -46,6 +46,12 @@ def known_difficulty(value: Any) -> Difficulty | None:
     return value if value in DIFFICULTIES else None  # type: ignore[return-value]
 
 
+#: What a route is for, in the map site's own words. The same three the tiles
+#: label a route marker with and `ResolvedRoute.activity` reports — that field
+#: is a plain string because a source may name something else entirely, while
+#: this is the closed set a caller can *ask* to be routed for.
+Activity = Literal["Hiking", "Bicycle", "4x4"]
+
 #: The map's own categories for a point of interest, as its tiles publish them.
 #: `Hiking`, `Bicycle` and `4x4` are categories too, but they label routes
 #: rather than points, and `search_hiking_routes` is where those belong.
@@ -388,3 +394,25 @@ class ResolvedRoute(Model):
         "guaranteed path on the ground."
     )
     ihmUrl: str = Field(description="Human-viewable page for this route on the map site.")
+
+
+class PathEnd(Model):
+    """Where a calculated path really begins or ends, against what was asked for.
+
+    A router can only start on a way it knows about, so a path starts at the
+    nearest one to the point it was given. In open country that can be a long
+    way off, and covering the gap is a walk the path does not include — which is
+    why the requested point, the point on the path and the distance between them
+    are all reported rather than only the last of the three.
+    """
+
+    requested: Coordinates = Field(description="The point this end was asked for.")
+    onPath: Coordinates = Field(
+        description="Where the calculated path actually starts or ends — the "
+        "nearest point on a way the router knows."
+    )
+    metersApart: int = Field(
+        description="Straight-line distance between the two, in whole metres. "
+        "Ground the path does not cover; nothing establishes that it can be "
+        "crossed at all."
+    )
