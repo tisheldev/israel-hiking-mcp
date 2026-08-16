@@ -29,6 +29,14 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ihm_mcp"]
+# The trail-map document is built from ui/src and read at runtime through
+# importlib.resources, so it has to travel in the wheel as package data. Listed
+# as an artifact rather than left to the default file walk: it is generated,
+# and a build must not quietly ship a package whose UI resource is missing.
+artifacts = ["src/ihm_mcp/assets/*.html"]
+
+[tool.hatch.build.targets.sdist]
+artifacts = ["src/ihm_mcp/assets/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

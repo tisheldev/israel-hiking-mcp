@@ -16,6 +16,7 @@ import sys
 
 from ihm_mcp import SERVER_NAME, __version__
 from ihm_mcp import tools as tools  # noqa: F401  (registers the tools)
+from ihm_mcp import ui as ui  # noqa: F401  (registers the trail-map resource)
 from ihm_mcp.app import mcp
 from ihm_mcp.config import ConfigurationError, get_settings
 

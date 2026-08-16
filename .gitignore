@@ -8,3 +8,9 @@ build/
 *.egg-info/
 .env
 .idea/
+
+# Frontend build tooling. The *output* — src/ihm_mcp/assets/trail-map-v1.html —
+# is committed on purpose: it is what keeps installing this server a Python and
+# `uv` job, with Node needed only to change the UI.
+ui/node_modules/
+ui/.vite/
