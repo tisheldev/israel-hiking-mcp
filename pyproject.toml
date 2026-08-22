@@ -4,6 +4,27 @@ version = "0.1.0"
 description = "Unofficial, non-commercial, read-only MCP server for Israel Hiking Map (Mapeak) data"
 readme = "README.md"
 requires-python = ">=3.11"
+# CC BY-NC-SA 3.0, matching the upstream map data this server reads. The
+# upstream licence puts all output of the work under the same terms, so the
+# code is licensed to match rather than leave the combined work ambiguous.
+# See LICENSE-NOTICE.md for what that means for anything this server returns.
+license = "CC-BY-NC-SA-3.0"
+license-files = ["LICENSE", "LICENSE-NOTICE.md"]
+authors = [{ name = "tishel", email = "86953330+Tishooshoo@users.noreply.github.com" }]
+keywords = ["mcp", "model-context-protocol", "hiking", "openstreetmap", "israel", "gis", "vector-tiles"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+
 dependencies = [
     "httpx>=0.28.1",
     "mapbox-vector-tile>=2.1",
@@ -12,6 +33,12 @@ dependencies = [
     "pydantic-settings>=2.6",
     "shapely>=2.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/tisheldev/israel-hiking-mcp"
+Repository = "https://github.com/tisheldev/israel-hiking-mcp"
+Issues = "https://github.com/tisheldev/israel-hiking-mcp/issues"
+Changelog = "https://github.com/tisheldev/israel-hiking-mcp/blob/main/CHANGELOG.md"
 
 [project.scripts]
 israel-hiking-mcp = "ihm_mcp.server:main"

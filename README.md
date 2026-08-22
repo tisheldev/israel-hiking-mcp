@@ -564,7 +564,8 @@ The short version:
 - This project is **unofficial**. It is not affiliated with, endorsed by, or
   supported by the Israel Hiking Map project or its maintainers.
 - This repository's own code is distributed under the same CC BY-NC-SA 3.0
-  terms, to keep the combined work unambiguous.
+  terms, to keep the combined work unambiguous. The full legal text is in
+  [LICENSE](LICENSE).
 
 ## Responsible use
 
