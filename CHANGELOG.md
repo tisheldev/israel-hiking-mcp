@@ -12,38 +12,13 @@ and is not recorded below.
 
 ## [Unreleased]
 
-### Added
+Nothing yet.
 
-- `--help` and `--version`. Run with a terminal on stdin and the server now
-  says that no client is connected and that it is about to wait, rather than
-  looking like it has hung.
-- A `LICENSE` file, so the repository stops reporting its licence as "Other",
-  and full package metadata — licence, author, project URLs, classifiers.
-- Continuous integration: the suite on Python 3.11, 3.12 and 3.13 across Linux
-  and Windows, `ruff check`, `mypy --strict` over `src`, and a job that
-  installs *without* the lockfile the way `uvx --from git+...` does.
-- A weekly scheduled `pytest -m live` run, which is the only thing that
-  notices upstream moving.
-- `CONTRIBUTING.md`, a bug-report template, and this changelog.
-
-### Changed
-
-- The documented install no longer requires cloning the repository. `uvx --from
-  git+...` is the primary path for every host.
-
-### Fixed
-
-- A startup warning from pydantic-settings 2.15 about FastMCP's own `lifespan`
-  field. It was harmless, but on a stdio server stderr is the only channel a
-  user sees.
-- Type errors that `mypy --strict` surfaced: `mercantile.Tile` was not usable
-  as a type at all, so every `tile.z` went unchecked; `Corridor.reaches`
-  returned numpy's bool rather than `builtins.bool`.
-
-## [0.1.0] — 2026-08-15
+## [0.1.0] — 2026-08-22
 
 First release. Five read-only tools over Israel Hiking Map / Mapeak and
-OpenStreetMap data, built across nine reviewed pull requests.
+OpenStreetMap data, built across nine reviewed pull requests, then packaged so
+somebody else can install it.
 
 ### Added
 
@@ -64,6 +39,31 @@ OpenStreetMap data, built across nine reviewed pull requests.
   errors under ten stable codes.
 - 400 offline tests, plus an opt-in `-m live` group that asserts contract
   against the real hosts.
+
+And, so that it can be handed over:
+
+- `--help` and `--version`. Run with a terminal on stdin and the server now
+  says that no client is connected and that it is about to wait, rather than
+  looking like it has hung.
+- A `LICENSE` file, so the repository stops reporting its licence as "Other",
+  and full package metadata — licence, author, project URLs, classifiers.
+- Continuous integration: the suite on Python 3.11, 3.12 and 3.13 across Linux
+  and Windows, `ruff check`, `mypy --strict` over `src`, and a job that
+  installs *without* the lockfile the way `uvx --from git+...` does.
+- A weekly scheduled `pytest -m live` run, which is the only thing that
+  notices upstream moving.
+- `CONTRIBUTING.md`, a bug-report template, and this changelog.
+- An install that does not require cloning the repository — `uvx --from
+  git+...` is the documented path for every host.
+
+Two things that packaging turned up, both fixed before release:
+
+- A startup warning from pydantic-settings 2.15 about FastMCP's own `lifespan`
+  field. Harmless, but on a stdio server stderr is the only channel a user
+  sees, so CI now fails on any warning at startup.
+- Type errors that `mypy --strict` surfaced. `mercantile.Tile` was not usable
+  as a type at all, so every `tile.z` went unchecked, and `Corridor.reaches`
+  returned numpy's bool rather than `builtins.bool`.
 
 ### Notes
 
