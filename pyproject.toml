@@ -1,7 +1,7 @@
 [project]
 name = "israel-hiking-mcp"
 version = "0.1.0"
-description = "Unofficial, non-commercial, read-only MCP server for Israel Hiking Map (Mapeak) data"
+description = "MCP server bringing Israel Hiking Map (Mapeak) trail data to LLM hosts: places, routes, POIs and routing"
 readme = "README.md"
 requires-python = ">=3.11"
 # CC BY-NC-SA 3.0, matching the upstream map data this server reads. The
