@@ -319,7 +319,7 @@ async def test_a_long_route_is_thinned_without_pointing_at_a_length_it_lacks(
 ):
     """A mapped trail runs to tens of thousands of positions, and almost none
     of them carry a `distance` tag to compare the thinned line against."""
-    walk = [
+    walk: list[dict[str, Any]] = [
         {"type": "node", "id": 1_000 + step, "lat": 32.75 + step * 0.00002, "lon": 35.02}
         for step in range(4_000)
     ]

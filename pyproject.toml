@@ -45,9 +45,12 @@ israel-hiking-mcp = "ihm_mcp.server:main"
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.1",
     "pytest>=8.3",
     "pytest-asyncio>=0.24",
     "respx>=0.22",
+    "ruff>=0.16.4",
+    "types-shapely>=2.1.0.20260728",
 ]
 
 [build-system]
@@ -67,3 +70,56 @@ addopts = "-m 'not live'"
 markers = [
     "live: talks to the real mapeak.com and openstreetmap.org; run with `-m live`",
 ]
+
+[tool.ruff]
+# The widest line the codebase already contained. This is a ceiling, not a
+# target: `ruff format` is deliberately not enforced, because it rejoins the
+# lines this codebase splits by hand to keep them readable as prose.
+line-length = 96
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # import sorting
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "SIM",      # simplify
+    "C4",       # comprehensions
+    "PIE",      # misc lints
+    "PT",       # pytest style
+    "ASYNC",    # blocking calls in async code — the one that matters most here
+    "RUF",
+]
+ignore = [
+    # This project writes en dashes and typographic quotes on purpose, in
+    # docstrings the model reads and in warnings the user reads.
+    "RUF001", "RUF002", "RUF003",
+    # `assert source and identifier` and `assert 34.0 < lng < 36.0` say one
+    # thing each. Splitting them would not make a failure easier to read.
+    "PT018",
+]
+
+[tool.mypy]
+# Deliberately not pinned to `python_version = "3.11"`. Doing so makes mypy
+# parse its dependencies' stubs under 3.11 too, and numpy's use `type`
+# statements, which are 3.12+ syntax. CI runs the real interpreters instead.
+files = ["src", "tests"]
+strict = true
+# Local stubs for the handful of third-party names worth describing.
+mypy_path = "typings"
+
+# mapbox-vector-tile ships no type information. Its one entry point is used
+# behind `decode.py`, which validates the shape it returns anyway, so a stub
+# would only restate what that module already checks at runtime.
+[[tool.mypy.overrides]]
+module = ["mapbox_vector_tile.*"]
+ignore_missing_imports = true
+
+# Tests are checked, but not required to annotate every `def test_...() -> None`.
+# The annotation carries no information there, and demanding 277 of them buys
+# nothing that the assertions do not already say.
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false

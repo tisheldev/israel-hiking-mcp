@@ -107,6 +107,7 @@ async def test_an_argument_left_out_falls_back_to_its_default(
     async with connected_session() as session:
         result = await session.call_tool("search_places", {"query": "Haifa"})
 
+    assert result.structuredContent is not None
     assert result.structuredContent["language"] == "en"
     assert result.structuredContent["israelOnly"] is True
 

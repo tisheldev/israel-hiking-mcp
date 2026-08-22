@@ -3,6 +3,7 @@
 import os
 
 import pytest
+from pydantic import ValidationError
 
 from ihm_mcp import __version__
 from ihm_mcp.config import ConfigurationError, Settings, get_settings, load_settings
@@ -87,8 +88,8 @@ def test_bad_values_are_rejected_and_name_the_variable(
 def test_settings_are_immutable():
     settings = load_settings()
 
-    with pytest.raises(Exception):
-        settings.request_timeout_seconds = 30  # type: ignore[misc]
+    with pytest.raises(ValidationError):
+        settings.request_timeout_seconds = 30
 
 
 def test_get_settings_parses_the_environment_once(monkeypatch: pytest.MonkeyPatch):

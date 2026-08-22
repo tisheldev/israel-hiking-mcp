@@ -1,0 +1,37 @@
+name: Live upstream check
+
+# The offline suite pins the shapes upstream had when the fixtures were
+# written. This is the run that notices when upstream moves: a renamed field, a
+# moved endpoint, a routing type that stopped being recognised.
+#
+# It costs about a dozen requests to two volunteer-run services, so it runs
+# weekly and never on a push. Do not raise the frequency without a reason —
+# see the Responsible use section of the README.
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UV_LINK_MODE: copy
+
+jobs:
+  live:
+    name: contract against the real hosts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install
+        run: uv sync --locked --all-groups
+
+      - name: Live tests
+        run: uv run --no-sync pytest -m live -q
