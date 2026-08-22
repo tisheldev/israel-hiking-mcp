@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from mcp import ClientSession
 from mcp.server.fastmcp import FastMCP
@@ -21,3 +22,11 @@ async def connected_session(server: FastMCP | None = None) -> AsyncIterator[Clie
     """
     async with create_connected_server_and_client_session(server or mcp) as client:
         yield client
+
+
+def tags(mapping: dict[str, str]) -> dict[str, Any]:
+    """Localized property names like `name:he` are not Python identifiers, so
+    they reach a fixture helper as a mapping rather than as keywords. Widening
+    the value type here is what lets one be unpacked beside keyword arguments
+    that are not strings."""
+    return dict(mapping)

@@ -15,7 +15,7 @@ import random
 import time
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import anyio
 import httpx
@@ -121,7 +121,7 @@ class UpstreamClient:
             response = await self.get(path, params, accept=accept)
             cached = response.content
             self.cache.set(key, cached)
-        return cached
+        return cast(bytes, cached)
 
     async def get(self, path: str, params: Params, *, accept: str | None) -> httpx.Response:
         """Send the request, retrying once — and only once — if it fails.

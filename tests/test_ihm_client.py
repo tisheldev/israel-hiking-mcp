@@ -5,6 +5,7 @@ think about HTTP again.
 """
 
 from collections.abc import Iterator
+from typing import Any
 
 import anyio
 import httpx
@@ -24,9 +25,9 @@ from ihm_mcp.ihm_client import UpstreamClient
 BASE_URL = "https://upstream.test"
 
 
-def make_settings(**overrides) -> Settings:
+def make_settings(**overrides: Any) -> Settings:
     """Explicit settings — never whatever IHM_* the developer's shell holds."""
-    values = {
+    values: dict[str, Any] = {
         "base_url": BASE_URL,
         "request_timeout_seconds": 1.0,
         "cache_ttl_seconds": 300,
@@ -56,9 +57,9 @@ def clock() -> FakeClock:
 
 
 @pytest.fixture
-def client(clock: FakeClock) -> Iterator[UpstreamClient]:
+def client(clock: FakeClock) -> UpstreamClient:
     # No backoff sleep: the retry *policy* is what is under test, not the wait.
-    yield UpstreamClient(make_settings(), retry_backoff_seconds=0, clock=clock)
+    return UpstreamClient(make_settings(), retry_backoff_seconds=0, clock=clock)
 
 
 @pytest.fixture

@@ -435,6 +435,8 @@ class Corridor:
         """Whether any part of `box` lies within `buffer_meters` of the route."""
         left, bottom = self.frame.metres((box.minLng, box.minLat))
         right, top = self.frame.metres((box.maxLng, box.maxLat))
-        return shapely.distance(self.line, shapely.box(left, bottom, right, top)) <= (
-            buffer_meters
+        # shapely compares through numpy, whose bool is not builtins.bool.
+        return bool(
+            shapely.distance(self.line, shapely.box(left, bottom, right, top))
+            <= buffer_meters
         )

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A second push to a PR makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The runner's disk is thrown away either way, and hardlinking across
+  # filesystems warns on every install.
+  UV_LINK_MODE: copy
+
+jobs:
+  test:
+    name: test ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install
+        run: uv sync --locked --all-groups --python ${{ matrix.python }}
+
+      # `requires-python = ">=3.11"` is a claim about all three; the matrix is
+      # what turns it into a tested one.
+      - name: Test
+        run: uv run --no-sync pytest -q
+
+  lint:
+    name: lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install
+        run: uv sync --locked --all-groups
+
+      - name: Ruff
+        run: uv run --no-sync ruff check --output-format github .
+
+      # `ruff format` is deliberately not enforced. It rejoins lines this
+      # codebase splits by hand, and the split ones read better.
+      - name: Mypy
+        run: uv run --no-sync mypy
+
+  newest-dependencies:
+    name: newest dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+
+      # The lockfile is what a contributor runs; it is not what a user gets.
+      # `uvx --from git+...` resolves fresh every time, so this job runs what
+      # they would actually install. It is how the pydantic-settings startup
+      # warning was found, and it is the job that catches the next one.
+      - name: Install without the lockfile
+        run: uv sync --upgrade --all-groups --resolution highest
+
+      - name: Show what resolved
+        run: uv pip list
+
+      - name: Test
+        run: uv run --no-sync pytest -q
+
+      # A warning on stderr is the only thing a user of a stdio server sees.
+      - name: Start the server and require a clean stderr
+        run: |
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
+            | timeout 30 uv run --no-sync israel-hiking-mcp 2>stderr.log >stdout.log || true
+          echo "--- stderr ---"; cat stderr.log
+          echo "--- stdout ---"; cat stdout.log
+          grep -q '"serverInfo"' stdout.log || { echo "::error::server did not answer initialize"; exit 1; }
+          if grep -iE 'warning|deprecat' stderr.log; then
+            echo "::error::the server warned on startup; a user installing without the lockfile would see this"
+            exit 1
+          fi
