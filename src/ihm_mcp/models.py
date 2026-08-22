@@ -43,7 +43,7 @@ def known_difficulty(value: Any) -> Difficulty | None:
     writes the literal string "Unknown" when a route has none. A grade nobody
     can interpret is worse than an honest null.
     """
-    return value if value in DIFFICULTIES else None  # type: ignore[return-value]
+    return value if value in DIFFICULTIES else None
 
 
 #: What a route is for, in the map site's own words. The same three the tiles

@@ -44,4 +44,6 @@ request rates.
 
 The Python source in this repository is the author's original work. It is
 distributed under the same CC BY-NC-SA 3.0 terms as the upstream data it is
-designed to read, to avoid any ambiguity about the combined work.
+designed to read, to avoid any ambiguity about the combined work. The full
+legal text is in [LICENSE](LICENSE); this file is the plain-language companion
+to it, and covers the upstream data as well as the code.

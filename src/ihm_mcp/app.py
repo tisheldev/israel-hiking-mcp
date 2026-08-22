@@ -13,7 +13,7 @@ import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
@@ -89,6 +89,7 @@ def tool(**kwargs: Any) -> Callable[[F], F]:
         kwargs.setdefault("description", inspect.cleandoc(fn.__doc__ or ""))
         # This server only ever reads; saying so lets a host skip a confirmation.
         kwargs.setdefault("annotations", ToolAnnotations(readOnlyHint=True))
-        return mcp.tool(**kwargs)(fn)
+        # `mcp.tool` erases the signature it was handed; this puts it back.
+        return cast(F, mcp.tool(**kwargs)(fn))
 
     return register

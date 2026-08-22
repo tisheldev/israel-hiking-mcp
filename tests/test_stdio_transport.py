@@ -11,6 +11,7 @@ import os
 import subprocess
 import sys
 import threading
+from contextlib import suppress
 from dataclasses import dataclass
 
 import pytest
@@ -67,8 +68,15 @@ def run_server_session() -> Session:
         bufsize=1,
     )
 
+    # Every pipe below was requested in the Popen call above; the type says
+    # `IO | None` because a Popen without them is the same class.
+    assert proc.stdin is not None and proc.stdout is not None
+    assert proc.stderr is not None
+
     stderr_chunks: list[str] = []
-    drain = threading.Thread(target=lambda: stderr_chunks.append(proc.stderr.read()))
+    # Bound outside the lambda: a narrowing does not survive into a closure.
+    stderr = proc.stderr
+    drain = threading.Thread(target=lambda: stderr_chunks.append(stderr.read()))
     drain.daemon = True
     drain.start()
 
@@ -89,10 +97,9 @@ def run_server_session() -> Session:
             if not line:
                 break
             stdout_lines.append(line)
-            try:
+            # Purity of the channel is asserted by the caller, not here.
+            with suppress(json.JSONDecodeError, KeyError, TypeError):
                 seen.add(json.loads(line)["id"])
-            except (json.JSONDecodeError, KeyError, TypeError):
-                pass  # purity is asserted by the caller, not here
 
         proc.stdin.close()
         stdout_lines.extend(proc.stdout.readlines())

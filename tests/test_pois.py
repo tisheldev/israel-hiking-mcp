@@ -16,7 +16,7 @@ none of the map's own data is committed, since it is CC BY-NC-SA.
 """
 
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import mapbox_vector_tile
@@ -26,7 +26,7 @@ import respx
 
 from ihm_mcp.config import get_settings
 from ihm_mcp.errors import SearchAreaTooLargeError
-from ihm_mcp.models import Coordinates, LineString
+from ihm_mcp.models import Coordinates, FeatureRef, LineString
 from ihm_mcp.pois import SUBTYPES, WATER_CAUTION, subtype_of
 from ihm_mcp.spatial import Corridor, metres_per_degree
 from ihm_mcp.tiles import (
@@ -135,9 +135,12 @@ def marker(
 
 
 def tile_bytes(features: list[dict[str, Any]], *, layer: str = "global_points") -> bytes:
-    return mapbox_vector_tile.encode(
-        [{"name": layer, "features": features}],
-        default_options={"y_coord_down": True, "extents": 4096},
+    return cast(
+        bytes,
+        mapbox_vector_tile.encode(
+            [{"name": layer, "features": features}],
+            default_options={"y_coord_down": True, "extents": 4096},
+        ),
     )
 
 
@@ -739,7 +742,7 @@ async def test_a_scan_past_the_tile_budget_fails_rather_than_answering_partly(
 
 def point_with(**properties: Any) -> TilePoint:
     return TilePoint(
-        ref={"source": "OSM", "identifier": "node_1"},
+        ref=FeatureRef(source="OSM", identifier="node_1"),
         coordinates=HAIFA,
         layer="global_points",
         properties=properties,

@@ -68,7 +68,7 @@ def test_upstream_not_found_is_outside_the_taxonomy():
 
 async def test_tool_errors_passes_taxonomy_errors_through_unchanged():
     @tool_errors
-    async def failing():
+    async def failing() -> None:
         raise InvalidInputError("limit must be 1-20")
 
     with pytest.raises(InvalidInputError) as caught:
@@ -81,12 +81,11 @@ async def test_tool_errors_hides_unexpected_failures(caplog: pytest.LogCaptureFi
     secret = "https://mapeak.com/api/search/internal?token=abc"
 
     @tool_errors
-    async def exploding():
+    async def exploding() -> None:
         raise KeyError(secret)
 
-    with caplog.at_level(logging.ERROR):
-        with pytest.raises(UpstreamUnavailableError) as caught:
-            await exploding()
+    with caplog.at_level(logging.ERROR), pytest.raises(UpstreamUnavailableError) as caught:
+        await exploding()
 
     assert secret not in str(caught.value)
     assert "exploding" in str(caught.value)
