@@ -25,7 +25,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v10
+      # Exact tag on purpose: astral-sh stopped publishing moving major
+      # aliases after v7, so `@v10` does not resolve at all.
+      - uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
