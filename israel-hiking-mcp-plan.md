@@ -4,7 +4,7 @@ Plan for the MVP described in `israel_hiking_mcp_mvp_prd.md`. Built as a new sta
 (`D:\Projects\IHM\israel-hiking-mcp`), no changes to the upstream `IsraelHikingMap/Site` repo.
 Work is split into 9 small PRs, each sized to teach one concept.
 
-Status: **awaiting approval — no code written yet.**
+Status: **complete — all nine PRs built and merged, 2026-08-15.**
 
 ---
 
@@ -34,7 +34,7 @@ All verified against the local `Site` repo and minimal read-only requests to pro
 1. **Search is global, not Israel-only.** A live search for "Haifa" returns matches in Nablus, France, and the US before Haifa, Israel. `search_places` must re-rank/optionally filter results by an Israel bounding box (about 29.3–33.4 N, 34.2–35.9 E) and expose that behavior in its schema. The `lat/lng/zoom/prefix` params the frontend sends are ignored by the current `SearchController` — don't rely on them.
 2. **OSM details come from `api.openstreetmap.org`, not an IHM endpoint.** That is "the same source strategy the frontend uses," as the PRD requires, but it means the MCP talks to a second external host (with its own attribution and usage policy).
 3. **Tile budget math constrains the search radius zoom.** At z14 a 40 km radius needs ~1,300 tiles. Plan: fetch at **z12 by default** (1–98 tiles for 1–40 km, budget 100), and verify during PR 5 that the tileset contains all route markers at z12; if low zooms are thinned, cap `radiusKm` lower or raise budget deliberately. *(Measured in PR 4: the bounding box of a 40 km circle costs 121 tiles at z12, over budget — so `tiles_for_radius` covers the circle itself, 98 tiles, and drops the corner tiles that cannot hold an in-radius result. **Verified in PR 5, 2026-08-14: z12 is not thinned.** Four z12 tiles — Haifa, Jerusalem, Eilat, Golan — were compared against all sixteen z14 children each; every feature present at z14 was present at z12, including the 817-feature Jerusalem tile. Default zoom and the 40 km cap stand.)*
-4. **Server-side `ShareUrl.cs` lacks `type/difficulty/length/gain/loss/start`** but the client's OpenAPI-generated model has them. Treat all of them as optional in our Pydantic model and never assume presence.
+4. **Server-side `ShareUrl.cs` lacks `type/difficulty/length/gain/loss/start`** but the client's OpenAPI-generated model has them. Treat all of them as optional in our Pydantic model and never assume presence. *(Checked live in PR 6, 2026-08-14: the deployed API **does** send all of them, plus `public` and `website`, so the checked-in C# class is behind what runs. They stay optional — two upstream descriptions of the same document disagreeing is exactly the case for not assuming.)*
 5. **The C# API has no swagger doc for tiles** — the MVT contract is only what the frontend consumes. Treat unknown layer/property changes as `upstream_schema_changed`.
 
 ---
@@ -125,6 +125,8 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 
 **Done when:** a real share id renders correct geometry and metadata via Inspector.
 
+*(As built, 2026-08-14. **Discrepancy 4 is resolved in the client's favour:** a live `/api/urls/{id}` does send `type`, `difficulty`, `length`, `gain`, `loss`, `start`, `public` and `website`, none of which are on the server's own `ShareUrl.cs`. Every field is still optional in the model, since the two disagree. **Segments duplicate their junctions** — 19 of 21 joins in the sampled share restate the previous segment's last point — so flattening them the way the site does carries every junction twice; `spatial.positions` drops the repeats and rounds to six decimals. Simplification runs at the smallest tolerance that fits the 3,000-position cap (10/25/50/100 m) in a local equirectangular frame rather than at one fixed tolerance, so a route is thinned as little as it needs to be; the frame is the same trick PR 8 needs for buffers. `osmUserId` and `website` are deliberately not returned. Sampled shares near Haifa carry 32–538 positions, so nothing live has needed simplifying yet — the thinning and the `geometry_too_large` refusal are covered by synthetic tracks in the tests.)*
+
 ### PR 7 — `get_route_details`, part 2: OSM source (`feat/route-details-osm`)
 **What you learn:** the OSM data model (nodes/ways/relations, `/full` expansion, nested relations) — the heart of how hiking routes actually exist in OSM.
 
@@ -133,6 +135,10 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 - Tests: node/way/relation fixtures, nested-relation recursion + loop guard, unsupported source (`Nakeb`, `iNature`, `Wikidata` → typed error), identifier parse failures.
 
 **Done when:** an OSM hiking relation from PR 5's search results returns a usable line geometry end-to-end.
+
+*(As built, 2026-08-14. **`osm2geojson` was not used**: the narrow path from elements to lines — node index, way node-refs, relation members in order — is about sixty lines, while the library's job is wholesale conversion including the polygon assembly nothing here needs. **Nested relations are fetched breadth-first with a worklist** rather than by recursion, each relation once however often it is referenced, bounded by a new `IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL` (16); past it the call fails `geometry_too_large` rather than returning part of a trail. `mergeLines` is ported with exact endpoint equality instead of the site's one-metre tolerance, since positions built from shared OSM nodes and rounded identically meet exactly. **A node ref is refused without a request** — a point cannot be a route. 410 Gone joins 404 in the HTTP client, because that is how OSM reports a deleted element. Adapters now take the whole `AppContext`, since the two of them talk to different hosts; the second client is built in the lifespan, with its own pool and cache.*
+
+*Verified live on 2026-08-14 against the routes PR 5's Haifa search returns. `relation_282071` — the Israel National Trail, 2,480 member ways, 41,689 recorded positions — merges into **one continuous line** from Dan to Eilat and comes back thinned at 50 m to 2,850 positions. `relation_13207704` (Haifa Trail) is a relation of three sub-relations plus a way: four requests, 903 positions. Two findings changed the code: the thinning warning pointed at `lengthKm`, which is null for almost every OSM route, and **local route relations use a non-standard `length` tag rather than `distance`** — and disagree with it, one sampled Haifa Trail section tagging `length=3` where the map's computed length is 8.59 km. `length` is therefore not read, `distance` is, and both the tool description and the README send a caller to the search result's computed `lengthKm` instead. Fragmentation is real, not a merge failure: the downtown section's consecutive member ways end 3–200 m apart in eight places, so it is honestly ten lines.)*
 
 ### PR 8 — `find_pois_along_route` (`feat/pois-along-route`)
 **What you learn:** buffer/distance geospatial computation done honestly (local projection trick + its error bounds) and the evidence/safety model — the "mapped fact ≠ current truth" discipline that makes this portfolio-worthy.
@@ -145,6 +151,14 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 
 **Done when:** water POIs along a real Haifa-area route come back distance-ranked with correct subtypes.
 
+*(As built, 2026-08-15. **The category mapping was not ported, because there is nothing to map.** A live z12 tile settles a question this plan got wrong: sampled over Haifa, all 228 features carried `poiCategory`, `poiIcon` and `poiIconColor` and **not one raw OSM tag** — no `natural`, no `waterway`, no `man_made`. `setIconColorCategory` has already run by the time the tileset is cut, so re-deriving it here would need tags this server never sees and would publish a second opinion where upstream has one. The category is read; only the **naming** is ported, `poiIcon` back to the label `initial-state.ts` puts on that icon. Water subtypes come out as planned — Spring/Pond, Waterfall, Waterhole, Water Well, Cistern — plus `icon-river` for waterways, which the site draws but does not offer as a POI to add. **`amenity=drinking_water` and `man_made=water_tap` are not a category upstream recognises at all**, contrary to this plan's parenthesis: `setIconColorCategory` has no branch for either, so there is no Tap subtype to return.*
+
+*`Other` — upstream's bucket for villages, synagogues, artworks and its `icon-search` fallback — is **111 of 168** features in a sampled Haifa tile, so it is excluded from `categories` by default rather than burying the springs. Route markers share the tiles and are never returned; that is `search_hiking_routes`' job.*
+
+*`spatial.Corridor` holds the route once in a `Frame` — the local equirectangular transform, now shared with `simplify_line` — and answers distances in metres from it. **The route is measured unthinned:** this tool returns numbers about a route rather than the route itself, so `fit_geometry` is not applied and up to 100 m of accuracy is not thrown away. Distances are rounded to whole metres once, and the buffer filter reads that same rounded number, so a point listed at 500 m is one a 500 m buffer keeps. `geometry_too_large` therefore never fires here; the **tile budget is the real bound**, and it is set by the route's length — `tiles_for_corridor` keeps only the tiles the line itself comes near, which for a country-length route is less than half its bounding box. The Israel National Trail's corridor still costs 123 tiles at z12 against a budget of 100, and 119 at the narrowest buffer offered, so its error says the route is too long rather than suggesting a narrower one that would not help.*
+
+*The **water caution rides on each water POI**, in a `caution` field, as well as heading the warnings: a summary that keeps the points and drops the warnings must still carry it. `evidence` is the fixed `{mapped_feature, observedAt: null, freshnessKnown: false}` the plan asks for — the plan's `mappedTags` is dropped, since the tiles carry no tags to put in it. Verified live on 2026-08-15 along `relation_13207704` (Haifa Trail): at 1,000 m, three water features — Vardiya Spring Well at 120 m, a Nahal HaGiborim waterfall at 615 m, a pool at 960 m; at the 500 m default, a cave at 106 m leads. One finding changed the code: the unnamed-marker count was being taken over the whole fetched tile rather than the corridor, which reported four omissions where the buffer held one.)*
+
 ### PR 9 — `route_between_points` + demo readiness (`feat/demo-ready`)
 **What you learn:** shipping — packaging an MCP server so a host can actually run it, and writing the honest README (limits, licensing, responsible use).
 
@@ -155,13 +169,23 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 
 **Done when:** every PRD §15 acceptance criterion is checked off.
 
+*(As built, 2026-08-15. **`activity: "None"` is not offered, contrary to this plan.** Upstream's `RoutingType` defines it and the controller maps it, but a live `type=None` answers **HTTP 500**, twice; the map site never sends it either — `routing.provider.ts` interpolates the straight line client-side and only calls the API for the other three. A straight line between two points is not worth a request to a volunteer-run service, and calling one a route would be the most misleading thing this server could return. The other three are exposed under this server's own vocabulary — `Hiking`/`Bicycle`/`4x4`, the words the tiles and `ResolvedRoute.activity` already use — mapped here to upstream's `Hike`/`Bike`/`4WD`.*
+
+*Two live findings shaped the tool. **Upstream answers an unrecognised `type=` with a walking route rather than an error** (`ConvertProfile` falls through to `Foot`; verified with `type=Swim`, which returned 143 positions of footpath). So a caller's word is never passed through, and the profile upstream names in the feature's `Name` — `Foot`/`Bike`/`Car4WheelDrive` — is checked against the one asked for, with a mismatch reported as `upstream_schema_changed`. A wording this server does not recognise is not treated as a mismatch, since a reworded sentence says nothing about which profile ran. The live test group exercises that check on all three activities, which is the only place it can be exercised. And **an unroutable pair is answered by not answering**: Haifa into the sea was still open after 40 s, where the client's timeout catches it — hence a coverage check against the same box `search_places` ranks by, before any request is spent.*
+
+*Ends are snapped: the router starts on the nearest way it knows, so each end reports `{requested, onPath, metersApart}` and says so in a warning past 100 m. Upstream's third ordinate — elevation, interpolated from a 30 m-sampled profile — is dropped rather than carried, and no climb is computed from it. `lengthKm` is measured before thinning, like every other length here. Bounds are 10 m to 100 km straight-line, refused before a request.*
+
+*The `ping` placeholder is gone, as PR 1 said it would be once the tool set was complete. The three protocol tests that used it now drive `search_places`, which reads the lifespan context before refusing a one-character query — so the stdio subprocess test still exercises the whole path without reaching a host.*
+
+*Verified live on 2026-08-15, the full Haifa scenario through a real MCP session; the transcript is in the README. Everything passed first time, and two numbers in the docs had already gone stale upstream: the Haifa Trail now resolves to 24 disconnected lines rather than the ten counted for its downtown section a day earlier, and the Israel National Trail's corridor now costs 128 tiles rather than 123. Both are the mapping moving, which is the argument for dating every measurement in the README.)*
+
 ---
 
 ## 5. Risks and open items
 
 1. ~~**z12 tile completeness** (flagged in PR 5) — the one unknown that can change scope; fallback is smaller max radius or a higher tile budget at z13.~~ **Closed in PR 5:** sampled z12 tiles carry every feature their z14 children do (see discrepancy 3). No scope change.
 2. **Upstream churn** — the repo is mid-rebrand (mapeak.com) and the API has no formal contract for tiles; mitigated by `upstream_schema_changed` fail-safe and fixtures pinned to today's shapes.
-3. **OSM API courtesy** — details go to api.openstreetmap.org; keep the responsible User-Agent, cache aggressively, and note OSM's usage policy in the README.
+3. ~~**OSM API courtesy** — details go to api.openstreetmap.org; keep the responsible User-Agent, cache aggressively, and note OSM's usage policy in the README.~~ **Addressed in PR 7:** its own client, pool and cache, the same identifying User-Agent, a request budget for nested relations, and the policy linked from the README. The one call that can still be heavy is a single enormous relation — the Israel National Trail's `/full` carries 41,689 nodes — which is one request, cached for the session.
 4. **License** — CC BY-NC-SA 3.0 with "output under same license": the MCP repo ships as unofficial/non-commercial, `LICENSE-NOTICE.md` from PR 1, and the README commits to contacting IHM maintainers before any public deployment or sustained automated use.
 5. **`external` layer contents unknown** — decoded from PR 4 onward; if it only carries non-OSM sources (Nakeb/iNature), those appear in search results but return `unsupported_source` from details, which is correct MVP behavior.
 

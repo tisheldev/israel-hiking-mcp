@@ -17,8 +17,6 @@ ordering something a caller can rely on.
 
 from __future__ import annotations
 
-from typing import get_args
-
 from ihm_mcp import tiles
 from ihm_mcp.models import (
     Coordinates,
@@ -26,24 +24,15 @@ from ihm_mcp.models import (
     Language,
     Model,
     RouteSummary,
+    known_difficulty,
     poi_url,
 )
-from ihm_mcp.spatial import haversine_km
+from ihm_mcp.spatial import METRES_PER_KM, haversine_km, reported_km
 from ihm_mcp.tiles import TilePoint
 
 #: The `poiCategory` this server's route search is about. The tileset also
 #: carries `Bicycle` and `4x4` route markers, which the MVP does not return.
 HIKING_CATEGORY = "Hiking"
-
-#: Metres, upstream's unit for `poiLength`.
-METRES_PER_KM = 1000.0
-
-#: Distances and lengths are reported to 10 m. The tile grid quantises position
-#: to about 2.4 m at zoom 12, so more decimals would be invented precision — and
-#: rounding first means a route reported as 12.0 km is one a 12 km limit keeps.
-REPORTED_DECIMALS = 2
-
-DIFFICULTIES = frozenset(get_args(Difficulty))
 
 
 class RouteConstraints(Model):
@@ -138,13 +127,9 @@ def route_summary(
 
 
 def difficulty_of(properties: tiles.Properties) -> Difficulty | None:
-    """The rated difficulty, if it is one this server knows how to mean.
-
-    A value outside upstream's own scale is reported as no rating at all: a
-    grade nobody can interpret is worse than an honest null.
-    """
-    rating = tiles.text(properties, "poiDifficulty")
-    return rating if rating in DIFFICULTIES else None  # type: ignore[return-value]
+    """The rated difficulty a marker carries, if it is one this server knows
+    how to mean."""
+    return known_difficulty(tiles.text(properties, "poiDifficulty"))
 
 
 def length_km(properties: tiles.Properties) -> float | None:
@@ -158,12 +143,6 @@ def length_km(properties: tiles.Properties) -> float | None:
     if metres is None or metres <= 0:
         return None
     return reported_km(metres / METRES_PER_KM)
-
-
-def reported_km(kilometres: float) -> float:
-    """A distance as this server states it. Every kilometre figure that reaches
-    a caller — or a filter — goes through here, so the two always agree."""
-    return round(kilometres, REPORTED_DECIMALS)
 
 
 def nearest_first(routes: list[RouteSummary]) -> list[RouteSummary]:

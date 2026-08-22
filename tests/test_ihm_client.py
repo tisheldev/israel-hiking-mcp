@@ -127,6 +127,20 @@ async def test_429_is_reported_as_rate_limited_with_the_wait(
     assert route.call_count == 1  # backing off is the caller's job, not a retry
 
 
+async def test_410_gone_is_the_same_missing_thing_as_a_404(
+    client: UpstreamClient, mock_upstream: respx.MockRouter
+):
+    """OpenStreetMap answers Gone for an element somebody deleted."""
+    route = mock_upstream.get("/relation/1/full.json").mock(
+        return_value=httpx.Response(410)
+    )
+
+    with pytest.raises(UpstreamNotFound):
+        await client.get_json("/relation/1/full.json")
+
+    assert route.call_count == 1
+
+
 async def test_other_4xx_is_treated_as_a_contract_mismatch(
     client: UpstreamClient, mock_upstream: respx.MockRouter
 ):

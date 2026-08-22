@@ -5,4 +5,6 @@ Importing this package registers every tool on the application, which is why
 """
 
 from ihm_mcp.tools import places as places  # noqa: F401
+from ihm_mcp.tools import pois as pois  # noqa: F401
 from ihm_mcp.tools import routes as routes  # noqa: F401
+from ihm_mcp.tools import routing as routing  # noqa: F401

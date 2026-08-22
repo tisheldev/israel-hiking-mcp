@@ -30,10 +30,16 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 @dataclass(frozen=True)
 class AppContext:
-    """What a tool call needs from the process, reachable via `Context`."""
+    """What a tool call needs from the process, reachable via `Context`.
+
+    Two upstreams, two clients: they are different hosts with different usage
+    policies, and a shared connection pool or cache would blur which one this
+    server is spending requests on.
+    """
 
     settings: Settings
     ihm: UpstreamClient
+    osm: UpstreamClient
 
 
 #: What a tool annotates its context parameter with, e.g. `ctx: ToolContext`.
@@ -47,15 +53,22 @@ def app_context(ctx: ToolContext) -> AppContext:
 
 @asynccontextmanager
 async def lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
-    """Own the HTTP client for the life of the session.
+    """Own the HTTP clients for the life of the session.
 
-    One connection pool and one cache for the whole process; building them per
-    tool call would throw both away.
+    One connection pool and one cache per upstream for the whole process;
+    building them per tool call would throw both away.
     """
     settings = get_settings()
-    async with UpstreamClient(settings) as ihm:
-        logger.info("upstream client ready for %s", settings.base_url)
-        yield AppContext(settings=settings, ihm=ihm)
+    async with (
+        UpstreamClient(settings) as ihm,
+        UpstreamClient(settings, base_url=str(settings.osm_api_url)) as osm,
+    ):
+        logger.info(
+            "upstream clients ready for %s and %s",
+            settings.base_url,
+            settings.osm_api_url,
+        )
+        yield AppContext(settings=settings, ihm=ihm, osm=osm)
 
 
 mcp = FastMCP(SERVER_NAME, lifespan=lifespan)

@@ -10,6 +10,7 @@ dependencies = [
     "mcp>=1.28,<2",
     "mercantile>=1.2.1",
     "pydantic-settings>=2.6",
+    "shapely>=2.0",
 ]
 
 [project.scripts]
@@ -32,3 +33,10 @@ packages = ["src/ihm_mcp"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+# The live group is deselected by default, so the suite runs offline and sends
+# nothing to a volunteer-run service. `-m live` on the command line replaces
+# this expression and runs only those.
+addopts = "-m 'not live'"
+markers = [
+    "live: talks to the real mapeak.com and openstreetmap.org; run with `-m live`",
+]

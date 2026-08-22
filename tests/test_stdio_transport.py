@@ -31,11 +31,14 @@ REQUESTS = [
     },
     {"jsonrpc": "2.0", "method": "notifications/initialized"},
     {"jsonrpc": "2.0", "id": 2, "method": "tools/list"},
+    # A query the tool refuses on sight. Every tool this server has talks to
+    # somebody else's host, and a test that drives a real subprocess is no place
+    # to reach one — this call runs the whole path and stops at the boundary.
     {
         "jsonrpc": "2.0",
         "id": 3,
         "method": "tools/call",
-        "params": {"name": "ping", "arguments": {"echo": "over-stdio"}},
+        "params": {"name": "search_places", "arguments": {"query": "a"}},
     },
 ]
 
@@ -137,11 +140,15 @@ def test_stdio_session_answers_every_request(session: Session):
     assert init["serverInfo"]["version"] == __version__
     assert init["capabilities"]["tools"] is not None
 
-    assert "ping" in [tool["name"] for tool in by_id[2]["result"]["tools"]]
+    listed = [tool["name"] for tool in by_id[2]["result"]["tools"]]
+    assert "route_between_points" in listed
 
+    # A refused call is a result carrying `isError`, not a JSON-RPC error — and
+    # the taxonomy code has to survive the real transport, not only the
+    # in-memory one.
     call = by_id[3]["result"]
-    assert call["structuredContent"]["status"] == "ok"
-    assert call["structuredContent"]["echo"] == "over-stdio"
+    assert call["isError"] is True
+    assert "[invalid_input]" in "".join(block["text"] for block in call["content"])
 
 
 def test_logs_go_to_stderr_and_shutdown_is_clean(session: Session):
