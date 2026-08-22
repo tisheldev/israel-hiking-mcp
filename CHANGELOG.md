@@ -12,7 +12,33 @@ and is not recorded below.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- `--help` and `--version`. Run with a terminal on stdin and the server now
+  says that no client is connected and that it is about to wait, rather than
+  looking like it has hung.
+- A `LICENSE` file, so the repository stops reporting its licence as "Other",
+  and full package metadata — licence, author, project URLs, classifiers.
+- Continuous integration: the suite on Python 3.11, 3.12 and 3.13 across Linux
+  and Windows, `ruff check`, `mypy --strict` over `src`, and a job that
+  installs *without* the lockfile the way `uvx --from git+...` does.
+- A weekly scheduled `pytest -m live` run, which is the only thing that
+  notices upstream moving.
+- `CONTRIBUTING.md`, a bug-report template, and this changelog.
+
+### Changed
+
+- The documented install no longer requires cloning the repository. `uvx --from
+  git+...` is the primary path for every host.
+
+### Fixed
+
+- A startup warning from pydantic-settings 2.15 about FastMCP's own `lifespan`
+  field. It was harmless, but on a stdio server stderr is the only channel a
+  user sees.
+- Type errors that `mypy --strict` surfaced: `mercantile.Tile` was not usable
+  as a type at all, so every `tile.z` went unchecked; `Corridor.reaches`
+  returned numpy's bool rather than `builtins.bool`.
 
 ## [0.1.0] — 2026-08-15
 
