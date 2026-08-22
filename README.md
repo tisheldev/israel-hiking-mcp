@@ -36,26 +36,64 @@ server trustworthy:
   `upstream_schema_changed` rather than read optimistically.
 - It never **writes anything**, anywhere. Every request it makes is a GET.
 
-## Requirements
+## Install
 
-- Python 3.11+
-- [`uv`](https://docs.astral.sh/uv/)
+There is nothing to clone. [`uv`](https://docs.astral.sh/uv/) is the only
+prerequisite — it fetches a suitable Python (3.11+) itself.
 
-## Setup
+**Claude Code:**
+
+```bash
+claude mcp add israel-hiking -- uvx --from git+https://github.com/tisheldev/israel-hiking-mcp israel-hiking-mcp
+```
+
+**Claude Desktop** — `claude_desktop_config.json`, then restart the app:
+
+```json
+{
+  "mcpServers": {
+    "israel-hiking": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/tisheldev/israel-hiking-mcp",
+        "israel-hiking-mcp"
+      ]
+    }
+  }
+}
+```
+
+**Any other MCP client** takes the same three things: the command `uvx`, the
+arguments above, and stdio transport. Environment variables from the
+[Configuration](#configuration) table go in an `"env"` object beside
+`"command"`.
+
+To hold a known version rather than whatever `main` holds, append a tag to the
+URL — `git+https://github.com/tisheldev/israel-hiking-mcp@v0.1.0`. Without one,
+every launch resolves the default branch, which is fine for trying it and worth
+pinning for anything you rely on.
+
+Run `uvx --from git+https://github.com/tisheldev/israel-hiking-mcp israel-hiking-mcp --help`
+to check the install without a host attached. Run it with no arguments and it
+will sit there saying nothing useful, which is correct: it is waiting for a
+client on stdin. It says so before it waits.
+
+## Working on it
+
+From a clone, for changing the code rather than using it:
 
 ```bash
 uv sync
-```
-
-## Run
-
-```bash
 uv run israel-hiking-mcp
 ```
 
 The server communicates over stdio and produces no stdout output of its own —
 stdout is reserved for the JSON-RPC message stream. Logs go to stderr; set
 `IHM_LOG_LEVEL=DEBUG` for verbose output.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the rest: the checks, what the live
+test group costs, and what a bug report needs.
 
 ## Tests
 
@@ -80,32 +118,17 @@ rather than content (that a route comes back with an identity, a name, a link
 and its cautions — not *which* routes are near Haifa today), and costs about a
 dozen requests. See [tests/test_live.py](tests/test_live.py).
 
-## Use from an MCP host
+## Running a clone from a host
 
-**Claude Desktop** — `claude_desktop_config.json`, then restart the app:
-
-```json
-{
-  "mcpServers": {
-    "israel-hiking": {
-      "command": "uv",
-      "args": ["--directory", "/absolute/path/to/israel-hiking-mcp", "run", "israel-hiking-mcp"]
-    }
-  }
-}
-```
-
-**Claude Code** — the same server, added from the command line:
+The [Install](#install) section above is what to hand somebody else. To point a
+host at a working copy instead — so an edit is picked up on the next restart —
+give it `uv` and an absolute path:
 
 ```bash
-claude mcp add israel-hiking -- uv --directory /absolute/path/to/israel-hiking-mcp run israel-hiking-mcp
+claude mcp add israel-hiking-dev -- uv --directory /absolute/path/to/israel-hiking-mcp run israel-hiking-mcp
 ```
 
-**Any other MCP client** takes the same three things: the command `uv`, the
-arguments above, and stdio transport. The path must be absolute — the host does
-not run in this directory. Environment variables from the
-[Configuration](#configuration) table can be passed in an `"env"` object beside
-`"command"`.
+The path must be absolute; the host does not run in this directory.
 
 ## Try it with MCP Inspector
 
