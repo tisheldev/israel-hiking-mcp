@@ -26,6 +26,14 @@ dried, a route that is mapped wrongly. This server reports what the map says.
 Fixing the map is done [upstream](https://www.openstreetmap.org), and doing so
 is worth far more than an issue here.
 
+## How it got this way
+
+[docs/implementation-plan.md](docs/implementation-plan.md) is the plan the nine
+pull requests were built from, annotated after each one with what the build
+actually turned up — including the parts where live behaviour contradicted the
+plan. It is the fastest way to understand why a decision here is the way it is
+before proposing a different one.
+
 ## Setting up
 
 ```bash
