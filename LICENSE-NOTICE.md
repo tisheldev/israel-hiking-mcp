@@ -70,5 +70,7 @@ passability — and for a calculated path, nothing there was ever walked.
 The Python source in this repository, and the frontend source in `ui/src`, are
 the author's original work. Both are distributed under the same CC BY-NC-SA 3.0
 terms as the upstream data they are designed to read, to avoid any ambiguity
-about the combined work. Bundled third-party frontend code keeps its own license,
-listed under [Frontend dependencies](#frontend-dependencies).
+about the combined work. The full legal text is in [LICENSE](LICENSE); this file
+is the plain-language companion to it, and covers the upstream data as well as
+the code. Bundled third-party frontend code keeps its own license, listed under
+[Frontend dependencies](#frontend-dependencies).

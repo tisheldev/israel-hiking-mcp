@@ -31,7 +31,7 @@ import logging
 import re
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Literal, Self, get_args
+from typing import Any, Literal, Self, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
@@ -79,7 +79,8 @@ class OsmFeature(Model):
                 "form is `<node|way|relation>_<id>`, e.g. 'relation_282071' — "
                 "the `identifier` of a search result's `ref`."
             )
-        return cls(kind=match.group(1), osmId=int(match.group(2)))
+        # IDENTIFIER's first group is the alternation of exactly these three.
+        return cls(kind=cast(Kind, match.group(1)), osmId=int(match.group(2)))
 
     def __str__(self) -> str:
         return f"{self.kind} {self.osmId}"

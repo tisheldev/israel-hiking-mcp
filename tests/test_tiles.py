@@ -6,13 +6,14 @@ tests build with `mapbox-vector-tile`'s own encoder.
 """
 
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import mapbox_vector_tile
 import mercantile
 import pytest
 import respx
+from pydantic import HttpUrl
 
 from ihm_mcp.config import Settings
 from ihm_mcp.errors import (
@@ -40,6 +41,8 @@ from ihm_mcp.tiles import (
     tile_path,
     tiles_for_radius,
 )
+from ihm_mcp.tiles.decode import TilePoint
+from tests.conftest import tags
 
 BASE_URL = "https://upstream.test"
 BUDGET = 100
@@ -54,9 +57,12 @@ HAIFA_TILE = mercantile.Tile(x=2446, y=1652, z=12)
 
 def tile_bytes(layers: dict[str, list[dict[str, Any]]], *, extent: int = 4096) -> bytes:
     """A real MVT body: tile-local integers whose origin is the top-left corner."""
-    return mapbox_vector_tile.encode(
-        [{"name": name, "features": features} for name, features in layers.items()],
-        default_options={"y_coord_down": True, "extents": extent},
+    return cast(
+        bytes,
+        mapbox_vector_tile.encode(
+            [{"name": name, "features": features} for name, features in layers.items()],
+            default_options={"y_coord_down": True, "extents": extent},
+        ),
     )
 
 
@@ -86,7 +92,7 @@ def pixels(tile: Tile, point: Coordinates, *, extent: int = 4096) -> tuple[int, 
     )
 
 
-def refs(points: list) -> list[str]:
+def refs(points: list[TilePoint]) -> list[str]:
     return [point.ref.identifier for point in points]
 
 
@@ -269,7 +275,7 @@ def test_upstream_properties_are_passed_through_untouched():
                     poiCategory="Hiking",
                     poiLength=8123.5,
                     poiDifficulty="Moderate",
-                    **{"name:he": "שביל"},
+                    **tags({"name:he": "שביל"}),
                 )
             ]
         }
@@ -473,7 +479,7 @@ def test_an_area_is_placed_in_the_middle_of_its_extent():
 @pytest.fixture
 def client() -> UpstreamClient:
     settings = Settings(
-        base_url=BASE_URL, request_timeout_seconds=1.0, max_concurrent_requests=4
+        base_url=HttpUrl(BASE_URL), request_timeout_seconds=1.0, max_concurrent_requests=4
     )
     return UpstreamClient(settings, retry_backoff_seconds=0)
 

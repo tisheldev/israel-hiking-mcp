@@ -1,0 +1,82 @@
+name: Bug report
+description: A tool returned the wrong thing, or failed when it should not have.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time.
+
+        **Not a bug in this server:** a trail that has closed, a spring that has
+        dried, a route mapped wrongly. This server reports what the map says.
+        Fixing the map itself is done at
+        [OpenStreetMap](https://www.openstreetmap.org), and is worth more than
+        an issue here.
+
+  - type: input
+    id: tool
+    attributes:
+      label: Which tool
+      placeholder: search_hiking_routes
+    validations:
+      required: true
+
+  - type: textarea
+    id: arguments
+    attributes:
+      label: Arguments you called it with
+      description: The JSON the host sent, or as close to it as you have.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what came back
+      description: >
+        The error code, or the part of the response that was wrong. If a result
+        looked wrong rather than failed, say what you were expecting to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: The stderr log
+      description: >
+        Nothing this server prints goes to stdout, so the log is the only place
+        a cause is recorded. Run the host with `IHM_LOG_LEVEL=DEBUG` and paste
+        what came out on stderr. It contains upstream URLs and timings — and no
+        credentials, because the server never has any.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: The output of `israel-hiking-mcp --version`.
+      placeholder: israel-hiking-mcp 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - uvx from the git URL
+        - a clone, with uv sync
+        - something else (say so above)
+    validations:
+      required: true
+
+  - type: input
+    id: host
+    attributes:
+      label: MCP host and OS
+      placeholder: Claude Desktop on Windows 11
+    validations:
+      required: true

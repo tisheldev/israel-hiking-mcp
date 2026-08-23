@@ -12,7 +12,7 @@ and the warnings are the contract an agent actually meets.
 """
 
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import mapbox_vector_tile
@@ -22,11 +22,11 @@ import respx
 
 from ihm_mcp import tiles
 from ihm_mcp.config import get_settings
-from ihm_mcp.models import Coordinates, FeatureRef, RouteSummary
+from ihm_mcp.models import Coordinates, FeatureRef, Language, RouteSummary
 from ihm_mcp.route_markers import RouteConstraints, length_km, nearest_first
 from ihm_mcp.spatial import haversine_km
 from ihm_mcp.tiles import Tile, tile_path, tiles_for_radius
-from tests.conftest import connected_session
+from tests.conftest import connected_session, tags
 
 BASE_URL = str(get_settings().base_url).rstrip("/")
 TILE_ROOT = "/vector/data/global_points/"
@@ -59,9 +59,12 @@ def marker(
 
 
 def tile_bytes(features: list[dict[str, Any]], *, layer: str = "global_points") -> bytes:
-    return mapbox_vector_tile.encode(
-        [{"name": layer, "features": features}],
-        default_options={"y_coord_down": True, "extents": 4096},
+    return cast(
+        bytes,
+        mapbox_vector_tile.encode(
+            [{"name": layer, "features": features}],
+            default_options={"y_coord_down": True, "extents": 4096},
+        ),
     )
 
 
@@ -81,7 +84,7 @@ ROUTES = [
         MIDDLE,
         poiLength=8000.0,
         name="Nahal Ovadia",
-        **{"name:en": "Nahal Ovadia", "name:he": "נחל עובדיה"},
+        **tags({"name:en": "Nahal Ovadia", "name:he": "נחל עובדיה"}),
     ),
     marker(
         34721793,
@@ -89,14 +92,14 @@ ROUTES = [
         poiLength=3504.880687667189,
         name="שביל חיפה - העיר התחתית",
         description="Segment 1: the lower city",
-        **{"name:en": "Haifa Trail - Downtown", "name:he": "שביל חיפה - העיר התחתית"},
+        **tags({"name:en": "Haifa Trail - Downtown", "name:he": "שביל חיפה - העיר התחתית"}),
     ),
     marker(
         37341163,
         FURTHER,
         poiLength=51106.61643053978,
         name="Haifa Wadis Trail",
-        **{"name:en": "Haifa Wadis Trail"},
+        **tags({"name:en": "Haifa Wadis Trail"}),
     ),
 ]
 
@@ -534,7 +537,7 @@ def test_length_comes_from_metres_and_is_reported_to_ten_metres(
     ],
 )
 def test_the_name_falls_back_the_way_the_map_site_does(
-    properties: dict[str, Any], language: str, expected: str
+    properties: dict[str, Any], language: Language, expected: str
 ):
     assert tiles.title(properties, language) == expected
 

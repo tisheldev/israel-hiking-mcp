@@ -25,6 +25,7 @@ import httpx
 import pytest
 import respx
 from mcp.types import TextContent, TextResourceContents
+from pydantic import AnyUrl
 
 from ihm_mcp.config import get_settings
 from ihm_mcp.ui import (
@@ -86,7 +87,7 @@ async def test_the_listed_resource_carries_its_framing_metadata():
 
 async def test_reading_the_resource_returns_the_packaged_document():
     async with connected_session() as session:
-        result = await session.read_resource(TRAIL_MAP_RESOURCE_URI)
+        result = await session.read_resource(AnyUrl(TRAIL_MAP_RESOURCE_URI))
 
     (contents,) = result.contents
     assert isinstance(contents, TextResourceContents)
@@ -99,7 +100,7 @@ async def test_reading_the_resource_returns_the_packaged_document():
 async def test_the_read_resource_repeats_its_csp():
     """A host that reads without listing still learns what to permit."""
     async with connected_session() as session:
-        result = await session.read_resource(TRAIL_MAP_RESOURCE_URI)
+        result = await session.read_resource(AnyUrl(TRAIL_MAP_RESOURCE_URI))
 
     (contents,) = result.contents
     assert contents.meta is not None
@@ -133,7 +134,9 @@ async def test_the_two_tools_share_one_resource():
     async with connected_session() as session:
         tools = {tool.name: tool for tool in (await session.list_tools()).tools}
 
-    advertised = {tools[name].meta["ui"]["resourceUri"] for name in GEOMETRY_TOOLS}
+    metas = [tools[name].meta for name in GEOMETRY_TOOLS]
+    assert all(meta is not None for meta in metas)
+    advertised = {meta["ui"]["resourceUri"] for meta in metas if meta is not None}
     assert advertised == {TRAIL_MAP_RESOURCE_URI}
 
 

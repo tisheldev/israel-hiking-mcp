@@ -1,0 +1,17 @@
+blank_issues_enabled: true
+contact_links:
+  - name: The map data itself is wrong
+    url: https://www.openstreetmap.org
+    about: >
+      A closed trail, a dried spring, a route mapped wrongly. This server
+      reports what the map says; the map is fixed upstream.
+
+  - name: Israel Hiking Map / Mapeak
+    url: https://github.com/IsraelHikingMap/Site
+    about: >
+      The upstream project this server reads. It is unaffiliated with this one
+      — please do not send it issues about this server.
+
+  - name: How to use it, and what it will not answer
+    url: https://github.com/tisheldev/israel-hiking-mcp#readme
+    about: The README covers install, the five tools, and the known limitations.
