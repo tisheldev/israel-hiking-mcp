@@ -83,9 +83,14 @@ make everything this server returns non-commercial and share-alike. Read
 - **Two upstreams, two clients.** `mapeak.com` and `api.openstreetmap.org` are
   different hosts under different usage policies, so they get separate connection
   pools and caches rather than a shared one that blurs which is being spent.
+- **The map is a separate, optional layer.** The [inline trail
+  map](#inline-trail-map) is one MCP Apps resource shared by the two tools that
+  return a complete line, built from `ui/src` into a single self-contained
+  document that travels in the wheel. Nothing on the Python side is required to
+  understand it, and a host that ignores it loses nothing.
 - **Strict `mypy` and `ruff` over source *and* tests**, with local stubs for the
   few third-party names worth describing.
-- **409 offline tests.** Every upstream response is either a fixture in the shape
+- **421 offline tests.** Every upstream response is either a fixture in the shape
   a live one was observed in, or a vector tile built in-test with
   `mapbox-vector-tile`'s own encoder — so the tile path is exercised against real
   encoded bytes without committing any map data.
@@ -103,7 +108,10 @@ make everything this server returns non-commercial and share-alike. Read
 ## Install
 
 There is nothing to clone. [`uv`](https://docs.astral.sh/uv/) is the only
-prerequisite — it fetches a suitable Python (3.11+) itself.
+prerequisite — it fetches a suitable Python (3.11+) itself. Node is **not**
+required to run this server: the inline trail map ships as a prebuilt document
+inside the Python package, and Node is needed only to change it, which
+[Inline trail map](#inline-trail-map) covers.
 
 **Claude Code:**
 
@@ -182,6 +190,14 @@ rather than content (that a route comes back with an identity, a name, a link
 and its cautions — not *which* routes are near Haifa today), and costs about a
 dozen requests. See [tests/test_live.py](tests/test_live.py).
 
+The frontend has its own suite, over the boundary logic that turns a tool result
+into something drawable — disconnected geometry, snapped routing ends,
+out-of-range coordinates, Hebrew text:
+
+```bash
+npm --prefix ui test
+```
+
 ## Running a clone from a host
 
 The [Install](#install) section above is what to hand somebody else. To point a
@@ -232,9 +248,14 @@ The [acceptance run](#acceptance-run) below is that walk, with its output.
 |---|---|
 | `search_places` | Find places by name (Hebrew or English) and return ranked candidate coordinates, each with a `{source, identifier}` ref and a link to the map site. |
 | `search_hiking_routes` | List hiking routes mapped near a point, nearest first, with length, any difficulty rating, and a link to the map site. |
-| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. |
+| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. **Draws a map** in hosts that support it. |
 | `find_pois_along_route` | List the springs, caves, viewpoints and other mapped points within a given distance of a route's line, nearest first, each with its distance in metres. |
-| `route_between_points` | Calculate a path between two points for walking, cycling or 4x4, using the map site's own routing engine. The one tool here whose answer is computed rather than recorded. |
+| `route_between_points` | Calculate a path between two points for walking, cycling or 4x4, using the map site's own routing engine. The one tool here whose answer is computed rather than recorded. **Draws a map** in hosts that support it. |
+
+The two tools that return a complete route line also render it as an interactive
+map in MCP Apps-compatible hosts — see [Inline trail map](#inline-trail-map).
+The map is an enhancement: every tool returns the same structured result, text
+mirror, warnings and attribution whether or not anything drew it.
 
 ### `search_places`
 
@@ -500,6 +521,80 @@ Calling one a route would be the most misleading thing this server could return.
 There is no `ihmUrl`: a calculated path is not a feature on the map site, and
 this server creates nothing upstream to link to.
 
+## Inline trail map
+
+`get_route_details` and `route_between_points` return a complete route line, so
+in hosts that implement [MCP Apps](https://github.com/modelcontextprotocol/ext-apps)
+their results also render as an interactive map, inline in the conversation.
+
+**What is drawn.** A recorded route in one colour, a calculated path in another
+— the two are never mistakable for each other, because one is a line somebody
+walked and the other is a line a router drew a moment ago. Around it: the
+metrics the source recorded, the tool's own warnings and `unknowns`, and the
+attribution. Below the map, not behind a click.
+
+Three things the picture is careful not to smooth over:
+
+- A route recorded as **several disconnected lines** is drawn as several lines.
+  The gaps are in the map data, and joining them would draw a path nobody
+  recorded.
+- A **calculated path whose ends were snapped** to the nearest mapped way shows
+  both the point requested and the point reached, with the ground between them
+  as a separate dashed segment. That ground is a walk the path does not include.
+- A **simplified line** says so, with the position counts and the tolerance the
+  backend applied.
+
+Nothing is recomputed in the browser. Lengths, ascent, warnings and unknowns are
+the values the tool returned, formatted — never derived from the drawn line,
+which may have been thinned.
+
+**Supported hosts.** Any client implementing the MCP Apps protocol; Claude
+Desktop and ChatGPT/Codex hosts among them. Only the portable protocol is used
+(`_meta.ui.resourceUri`, `text/html;profile=mcp-app`, and the standard `ui/*`
+bridge) — no `window.openai` or other host-specific API is on the required path.
+
+**Fallback.** A host that does not implement MCP Apps never reads the resource
+and loses nothing: the structured result, the JSON text mirror, the warnings,
+the unknowns and the attribution are exactly what they were. Terminal-only hosts
+such as Claude Code are in this category by design. The map must never be
+required to understand or safely use a result, and
+[tests/test_ui.py](tests/test_ui.py) asserts it.
+
+**Network.** The document carries its own script and stylesheet inline and
+fetches nothing. Its only outbound requests are basemap tiles from
+`https://tile.openstreetmap.org`, which is the single origin declared in the
+resource's CSP. That is a low-volume raster source, appropriate for a personal,
+non-commercial project; **a public deployment should pick a tile provider sized
+for its expected traffic** and update `TILE_ORIGIN` in
+[src/ihm_mcp/ui.py](src/ihm_mcp/ui.py) and `TILE_URL` in
+[ui/src/map.ts](ui/src/map.ts) together.
+
+### Changing the map
+
+The document served to hosts is a build artifact, committed at
+`src/ihm_mcp/assets/trail-map-v1.html`. Its source of truth is `ui/src`, and it
+is never hand-edited.
+
+```bash
+npm --prefix ui ci
+npm --prefix ui run build
+```
+
+That writes the single self-contained document back into the Python package.
+Committing the artifact is what keeps installing this server a Python-and-`uv`
+job — Node is a development dependency for UI changes only.
+
+The frontend splits at the boundaries that actually change independently:
+`bridge.ts` talks to the host, `normalize.ts` validates a raw result into a
+`MapViewModel`, `map.ts` draws one, and `main.ts` is the only place the three
+meet. `normalize.ts` is pure and carries the test suite; a future POI overlay
+should add a field and a layer without touching the bridge, the resource, or any
+tool contract.
+
+Version the resource URI — the filename, `TRAIL_MAP_RESOURCE_URI`, and the
+`ui/vite.config.ts` asset name — whenever the component's expectations of a
+result change incompatibly. Hosts may cache a `ui://` document.
+
 ## Known limitations
 
 Things that are true of this server by design, and worth knowing before trusting
@@ -690,6 +785,16 @@ Before any public deployment, shared instance, or sustained automated querying:
 [API usage policy](https://operations.osmfoundation.org/policies/api/). A tool
 that makes it easy for a language model to fan out over somebody else's map
 tiles is exactly the kind of thing that gets an API closed for everybody.
+
+One more, now that results can be drawn: **a clean line on a map establishes
+nothing.** A route rendered in confident colour over a real basemap looks like a
+plan in a way the same coordinates in JSON never did — but the picture adds no
+information. It does not show that the route is open, permitted, waymarked,
+passable or safe, that the gaps between disconnected parts can be crossed, or
+that anything has been checked since somebody recorded it at an unknown date.
+For a calculated path it is weaker still: nothing there was ever walked. The
+warnings and `unknowns` beside the map are the answer; the map is an index to
+them.
 
 And the point the whole design turns on: **nothing here is a substitute for a
 current map, local knowledge, and carrying enough water.** An answer from this

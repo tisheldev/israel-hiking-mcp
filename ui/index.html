@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trail map</title>
+  </head>
+  <body>
+    <!--
+      The whole component, as static structure. `main.ts` fills these nodes with
+      `textContent` and never builds markup from upstream strings.
+
+      `dir="auto"` on every text region: names and descriptions arrive in Hebrew
+      or English from upstream, and each region is laid out by its own content.
+    -->
+    <div class="trail-map" id="trail-map">
+      <div class="trail-map__map" id="map" role="application" aria-label="Route map"></div>
+
+      <div class="trail-map__status" id="status" role="status" dir="auto"></div>
+
+      <div class="trail-map__details" id="details" hidden>
+        <header class="trail-map__header">
+          <h1 class="trail-map__title" id="title" dir="auto"></h1>
+          <dl class="trail-map__metrics" id="metrics"></dl>
+        </header>
+
+        <section class="trail-map__notes" id="notes-section" hidden aria-labelledby="notes-heading">
+          <h2 class="trail-map__heading" id="notes-heading">About this shape</h2>
+          <ul class="trail-map__list" id="notes"></ul>
+        </section>
+
+        <section
+          class="trail-map__warnings"
+          id="warnings-section"
+          hidden
+          aria-labelledby="warnings-heading"
+        >
+          <h2 class="trail-map__heading" id="warnings-heading">Warnings</h2>
+          <ul class="trail-map__list" id="warnings"></ul>
+        </section>
+
+        <section
+          class="trail-map__unknowns"
+          id="unknowns-section"
+          hidden
+          aria-labelledby="unknowns-heading"
+        >
+          <h2 class="trail-map__heading" id="unknowns-heading">What this does not tell you</h2>
+          <ul class="trail-map__list" id="unknowns"></ul>
+        </section>
+
+        <footer class="trail-map__attribution" id="attribution" dir="auto"></footer>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
