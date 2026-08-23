@@ -28,8 +28,10 @@ __all__ = ["build_parser", "configure_logging", "main", "mcp"]
 
 #: Shown by `--help`. A server that answers nothing when run by hand is the
 #: normal case for stdio, and the first thing somebody trying it needs told.
-DESCRIPTION = """An unofficial, non-commercial, read-only MCP server for Israel Hiking Map
-(Mapeak) and OpenStreetMap hiking data.
+DESCRIPTION = """Five read-only tools over Israel Hiking Map (Mapeak) and OpenStreetMap
+hiking data: find a place, find the routes mapped near it, resolve one route's
+geometry, list the points of interest along it, and route between two points.
+Unofficial and non-commercial; see LICENSE-NOTICE.md.
 
 This is not an interactive program. It speaks the Model Context Protocol over
 stdin and stdout, and is meant to be launched by an MCP host such as Claude
