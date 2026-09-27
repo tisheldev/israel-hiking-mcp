@@ -14,6 +14,10 @@ find_pois_along_route that route, 1 km, Water    → 3 water features, distances
 route_between_points  two points on the Carmel   → 6.39 km walking path, both ends snapped
 ```
 
+![In Hebrew, a host asks for a 4–12 km loop near Haifa with a spring; the server finds Haifa, nearby routes, the Nahal Si'ah and Nahal Ezov loop as one line, and two springs on it, each with a caution](docs/demo.gif)
+
+<sub>Recorded from live responses on 2026-09-27, with `language: "he"`. The map is drawn from the returned GeoJSON; the chat is a mock-up of a host, and the server's English warnings are shown translated.</sub>
+
 Every answer is grounded: it names its sources and their licences, lists the
 questions the data cannot settle, and flags the results somebody might act on.
 That is what the design turns on — an answer about a trail is only worth
