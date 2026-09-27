@@ -10,6 +10,10 @@ and how to get from one point to another. Every answer carries its provenance,
 what it does not establish, and — where somebody might act on it — an explicit
 caution.
 
+![In Hebrew, a host asks for a 4–12 km loop near Haifa with a spring; the server finds Haifa, nearby routes, the Nahal Si'ah and Nahal Ezov loop as one line, and two springs on it, each with a caution](docs/demo.gif)
+
+<sub>Recorded from live responses on 2026-09-27, with `language: "he"`. The map is drawn from the returned GeoJSON; the chat is a mock-up of a host, and the server's English warnings are shown translated.</sub>
+
 > **Status: MVP complete (PR 9 of 9).** Five tools, a fully offline test suite,
 > and an opt-in live one. This is a personal, portfolio-scale project pointed at
 > a volunteer-run service; read [Responsible use](#responsible-use) before
