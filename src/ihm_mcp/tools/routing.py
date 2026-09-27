@@ -66,6 +66,7 @@ from ihm_mcp.spatial import (
     positions,
     reported_km,
 )
+from ihm_mcp.ui import TRAIL_MAP_TOOL_META
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +358,13 @@ def warnings_for(*, start: PathEnd, end: PathEnd, detail: GeometryDetail) -> lis
     return warnings
 
 
-@tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+@tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    # A calculated path is a line, so a host that implements MCP Apps can draw
+    # it — distinctly from a recorded one, with the snapped ends shown. The
+    # result itself is unchanged, and the warning above still leads it.
+    meta=TRAIL_MAP_TOOL_META,
+)
 @tool_errors
 async def route_between_points(
     ctx: ToolContext,

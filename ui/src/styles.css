@@ -1,0 +1,233 @@
+/*
+ * Presentation only. No dimension here encodes a fact about a route.
+ *
+ * Two constraints shape this file: the component is embedded at a width the
+ * host chooses, and its text arrives in Hebrew or English. So the layout is
+ * fluid rather than breakpoint-driven, and direction is never hard-coded —
+ * `dir="auto"` on each text region does the work, and the properties used here
+ * are logical (`margin-inline`, `border-inline-start`) so they follow it.
+ */
+
+:root {
+  color-scheme: light dark;
+
+  --surface: #ffffff;
+  --surface-sunken: #f5f5f4;
+  --text: #1c1917;
+  --text-muted: #57534e;
+  --border: #d6d3d1;
+  --warning-edge: #c2410c;
+  --unknown-edge: #78716c;
+  --recorded: #c2410c;
+  --calculated: #1d4ed8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #1c1917;
+    --surface-sunken: #292524;
+    --text: #f5f5f4;
+    --text-muted: #a8a29e;
+    --border: #44403c;
+    --warning-edge: #fb923c;
+    --unknown-edge: #a8a29e;
+    --recorded: #fb923c;
+    --calculated: #60a5fa;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--surface);
+  color: var(--text);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.trail-map {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+/*
+ * The map takes the room it can get and keeps a usable height on a phone.
+ * `min-height` rather than a fixed one: hosts embed this at very different
+ * sizes, and a route squeezed into 120 px is not readable at any zoom.
+ */
+.trail-map__map {
+  width: 100%;
+  min-height: 320px;
+  flex: 1 1 60vh;
+  background: var(--surface-sunken);
+}
+
+.trail-map__map[hidden] {
+  display: none;
+}
+
+.trail-map__status:not(:empty) {
+  padding: 16px;
+  color: var(--text-muted);
+}
+
+.trail-map__details {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trail-map__details[hidden] {
+  display: none;
+}
+
+.trail-map__header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.trail-map__title {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.3;
+  /* The title inherits the line colour of whichever kind of route this is, so
+     the legend for the two styles is the heading itself. */
+  border-inline-start: 4px solid var(--recorded);
+  padding-inline-start: 10px;
+}
+
+.trail-map__details[data-kind="calculated"] .trail-map__title {
+  border-inline-start-color: var(--calculated);
+}
+
+/*
+ * Metrics wrap as label/value pairs rather than sitting in a grid: the set of
+ * metrics differs per result — most routes carry no ascent, no difficulty —
+ * and empty columns would read as missing rather than absent.
+ */
+.trail-map__metrics {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+
+.trail-map__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.trail-map__metrics dt {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.trail-map__metrics dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.trail-map__heading {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.trail-map__list {
+  margin: 0;
+  padding-inline-start: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trail-map__notes,
+.trail-map__warnings,
+.trail-map__unknowns {
+  background: var(--surface-sunken);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.trail-map__warnings {
+  border-inline-start: 4px solid var(--warning-edge);
+}
+
+.trail-map__unknowns {
+  border-inline-start: 4px solid var(--unknown-edge);
+}
+
+.trail-map__notes[hidden],
+.trail-map__warnings[hidden],
+.trail-map__unknowns[hidden] {
+  display: none;
+}
+
+.trail-map__attribution {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.trail-map__attribution p {
+  margin: 0 0 4px;
+}
+
+/* The fit-to-route control: a real button, so focus and activation are the
+   browser's. Sized to a comfortable touch target. */
+.trail-map__fit button {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.trail-map__fit button:hover {
+  background: var(--surface-sunken);
+}
+
+.trail-map__fit button:focus-visible {
+  outline: 2px solid var(--calculated);
+  outline-offset: -2px;
+}
+
+/* Leaflet paints its own light chrome; keep it legible in a dark host. */
+@media (prefers-color-scheme: dark) {
+  .leaflet-control-zoom a,
+  .leaflet-control-attribution {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  .leaflet-control-attribution a {
+    color: var(--calculated);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
