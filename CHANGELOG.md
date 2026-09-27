@@ -12,7 +12,18 @@ and is not recorded below.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+
+- **An inline trail map.** `get_route_details` and `route_between_points` now
+  carry an [MCP Apps](https://github.com/modelcontextprotocol/ext-apps) resource,
+  so hosts that implement the protocol render the route line on a real basemap
+  instead of handing a model a list of coordinates. Disconnected geometry is
+  drawn disconnected, snapped routing ends show both the point requested and the
+  point reached, and a geometry that does not validate is not drawn at all.
+  Nothing is recomputed in the browser.
+- The map is a pure enhancement: no tool schema, annotation or error boundary
+  changed, and a host that ignores the resource gets the same structured result,
+  text mirror, warnings, unknowns and attribution it always did.
 
 ## [0.1.0] — 2026-08-22
 

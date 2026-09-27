@@ -52,6 +52,7 @@ from ihm_mcp.route_markers import (
 from ihm_mcp.route_sources import adapter_for
 from ihm_mcp.spatial import fit_geometry, lines_of
 from ihm_mcp.tiles import points_in_radius
+from ihm_mcp.ui import TRAIL_MAP_TOOL_META
 
 logger = logging.getLogger(__name__)
 
@@ -355,7 +356,14 @@ def detail_warnings(
     return warnings
 
 
-@tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+@tool(
+    annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True),
+    # This result carries a complete route line, so a host that implements MCP
+    # Apps can draw it. Nothing below changes: the structured result, the text
+    # mirror, the warnings and the attribution are what they were, and this
+    # function never learns whether anything rendered.
+    meta=TRAIL_MAP_TOOL_META,
+)
 @tool_errors
 async def get_route_details(
     ctx: ToolContext,

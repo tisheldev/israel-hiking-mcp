@@ -1,49 +1,121 @@
 # Israel Hiking MCP
 
-An unofficial, non-commercial, read-only [MCP](https://modelcontextprotocol.io)
-server exposing Israel Hiking Map / [Mapeak](https://mapeak.com) hiking data to
-LLM hosts.
+An [MCP](https://modelcontextprotocol.io) server that puts Israel Hiking Map /
+[Mapeak](https://mapeak.com) trail data in reach of an LLM host. Five tools
+answer the questions a walk starts with: **where a place is**, **what routes are
+mapped near it**, **what one of those routes actually looks like**, **what the
+map draws beside it**, and **how to get from one point to another**.
 
-It answers five questions: where a place is, what hiking routes are mapped near
-it, what one of those routes actually looks like, what the map draws beside it,
-and how to get from one point to another. Every answer carries its provenance,
-what it does not establish, and — where somebody might act on it — an explicit
-caution.
+```text
+search_places         "Haifa"                    → 32.8191, 34.9984, ranked, linked
+search_hiking_routes  15 km around it, 4–12 km   → 16 routes, the 10 nearest first
+get_route_details     OSM/relation_13207704      → the Haifa Trail as GeoJSON, 903 positions
+find_pois_along_route that route, 1 km, Water    → 3 water features, distances in metres
+route_between_points  two points on the Carmel   → 6.39 km walking path, both ends snapped
+```
 
 ![In Hebrew, a host asks for a 4–12 km loop near Haifa with a spring; the server finds Haifa, nearby routes, the Nahal Si'ah and Nahal Ezov loop as one line, and two springs on it, each with a caution](docs/demo.gif)
 
 <sub>Recorded from live responses on 2026-09-27, with `language: "he"`. The map is drawn from the returned GeoJSON; the chat is a mock-up of a host, and the server's English warnings are shown translated.</sub>
 
-> **Status: MVP complete (PR 9 of 9).** Five tools, a fully offline test suite,
-> and an opt-in live one. This is a personal, portfolio-scale project pointed at
-> a volunteer-run service; read [Responsible use](#responsible-use) before
+Every answer is grounded: it names its sources and their licences, lists the
+questions the data cannot settle, and flags the results somebody might act on.
+That is what the design turns on — an answer about a trail is only worth
+repeating if it says where it came from and where it stops.
+
+> **Status: v0.1.0, feature-complete.** Five tools built across nine reviewed
+> pull requests, ~4,900 lines of typed Python under strict mypy, 409 offline
+> tests and an opt-in live group. It is a personal-scale project pointed at a
+> volunteer-run service — read [Responsible use](#responsible-use) before
 > pointing anything automated at it.
 
-See [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output — the
-upstream data is CC BY-NC-SA 3.0 (non-commercial, share-alike) and ODbL.
+The map data belongs to Israel Hiking Map and OpenStreetMap, under licences that
+make everything this server returns non-commercial and share-alike. Read
+[LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output.
 
-## What it will not do
+## What it does
 
-Worth knowing before the tool list, because it is most of what makes this
-server trustworthy:
+- **Reads the map's own sources rather than scraping its pages.** Places come
+  from the site's search index. Routes and points of interest are decoded from
+  the **vector tiles the map itself draws** (`global_points`, zoom 10–14), which
+  is the only place they exist — there is no query API for them. Route geometry
+  comes from the OpenStreetMap API and from the site's user-shared routes; paths
+  come from its routing engine.
+- **Assembles geometry that arrives in pieces.** An OSM route is a relation of
+  ways, each drawn in whatever direction its mapper chose and listed in whatever
+  order the relation holds. The server sews them into continuous lines, follows
+  nested relations breadth-first under a request budget, and returns a
+  `MultiLineString` — saying so — where the mapping genuinely does not join up. A
+  user-shared route of more than 3,000 positions is thinned by Douglas-Peucker at
+  the smallest tolerance that fits, and reports which tolerance that was, how
+  many positions it kept, and that the ends survived.
+- **Ranks candidates and lets the host choose.** Searches return an ordered list
+  and say what they dropped — upstream's place index is worldwide, so "Haifa"
+  reaches Syria, France and Chile first, and results are ranked into an Israel
+  bounding box with the omissions counted in `warnings`. Ordering is
+  deterministic: the same inputs give the same routes in the same sequence.
+- **Works to a budget and says when it hits one.** An area search costs one tile
+  request per tile it covers, growing with the square of the radius, so it runs
+  under a tile budget and refuses with a radius that *would* have worked rather
+  than returning part of an area as though it were all of it. The zoom it
+  searches at was picked for that budget and then checked against zoom-14
+  children over four regions to confirm nothing is dropped at the lower zoom.
+- **Carries its provenance and its limits into the model's context.** Every
+  response ships an `attribution` object naming both sources, a `warnings` list,
+  an `unknowns` list of what the data cannot establish — closure, access, water,
+  waymarking, terrain, time — and a per-result `caution` on the things people
+  act on. Water above all: a spring on this map is an undated record in a country
+  where most water is seasonal, so the caution rides on the water result itself,
+  and survives a summary that keeps the points and drops the warnings.
+- **Fails in a typed, stable way.** Ten error codes, split into the transient and
+  the permanent, with upstream bodies, URLs and tracebacks kept out of the
+  message and sent to the log instead. A response in a shape the server does not
+  recognise is reported as `upstream_schema_changed` rather than read
+  optimistically, and an unresolvable source is refused by name.
+- **Touches nothing upstream.** Every request is a GET, identified by a
+  descriptive User-Agent, capped in concurrency, timed out, cached in memory and
+  retried at most once after a transient failure.
 
-- It never claims a route is **open, permitted, passable or safe**. Nothing in
-  the data says so, and every response carries an `unknowns` list saying which
-  questions it cannot answer.
-- It never treats a **mapped water feature** as water. A spring on the map is a
-  record that somebody once saw water there, undated, in a country where most
-  water is seasonal — so every water result carries a caution of its own.
-- It never **picks for you**. Searches return ranked candidates and say what
-  they dropped; nothing is auto-selected.
-- It never **guesses at upstream**. A source it cannot resolve is refused by
-  name, and a response in a shape it does not recognise is reported as
-  `upstream_schema_changed` rather than read optimistically.
-- It never **writes anything**, anywhere. Every request it makes is a GET.
+## How it is built
+
+- **Python 3.11+ on `FastMCP`,** with `httpx` for both upstreams, `shapely` and
+  `mercantile` for geometry and tile maths, and `mapbox-vector-tile` for decoding.
+- **Pydantic models are the contract.** Their field descriptions travel to the
+  client as each tool's output schema, so they are written to be read by a model
+  and not only by a Python caller. A feature is always identified by a
+  `{source, identifier}` ref, never a bare id.
+- **Two upstreams, two clients.** `mapeak.com` and `api.openstreetmap.org` are
+  different hosts under different usage policies, so they get separate connection
+  pools and caches rather than a shared one that blurs which is being spent.
+- **The map is a separate, optional layer.** The [inline trail
+  map](#inline-trail-map) is one MCP Apps resource shared by the two tools that
+  return a complete line, built from `ui/src` into a single self-contained
+  document that travels in the wheel. Nothing on the Python side is required to
+  understand it, and a host that ignores it loses nothing.
+- **Strict `mypy` and `ruff` over source *and* tests**, with local stubs for the
+  few third-party names worth describing.
+- **421 offline tests.** Every upstream response is either a fixture in the shape
+  a live one was observed in, or a vector tile built in-test with
+  `mapbox-vector-tile`'s own encoder — so the tile path is exercised against real
+  encoded bytes without committing any map data.
+- **An opt-in live group** that asserts contract rather than content against the
+  real hosts, catching what a fixture cannot: a renamed field, a moved endpoint,
+  a routing type upstream stopped recognising.
+- **CI on Python 3.11, 3.12 and 3.13 across Linux and Windows**, with the live
+  group on a workflow of its own.
+- **Measured numbers carry their dates.** Upstream keeps moving: measurements a
+  day apart disagreed about how many disconnected pieces the Haifa Trail resolves
+  to and what the Israel National Trail's corridor costs in tiles. The
+  [acceptance run](#acceptance-run) below is the whole server driven through a
+  real MCP session against the live hosts, with its output.
 
 ## Install
 
 There is nothing to clone. [`uv`](https://docs.astral.sh/uv/) is the only
-prerequisite — it fetches a suitable Python (3.11+) itself.
+prerequisite — it fetches a suitable Python (3.11+) itself. Node is **not**
+required to run this server: the inline trail map ships as a prebuilt document
+inside the Python package, and Node is needed only to change it, which
+[Inline trail map](#inline-trail-map) covers.
 
 **Claude Code:**
 
@@ -122,6 +194,14 @@ rather than content (that a route comes back with an identity, a name, a link
 and its cautions — not *which* routes are near Haifa today), and costs about a
 dozen requests. See [tests/test_live.py](tests/test_live.py).
 
+The frontend has its own suite, over the boundary logic that turns a tool result
+into something drawable — disconnected geometry, snapped routing ends,
+out-of-range coordinates, Hebrew text:
+
+```bash
+npm --prefix ui test
+```
+
 ## Running a clone from a host
 
 The [Install](#install) section above is what to hand somebody else. To point a
@@ -172,9 +252,14 @@ The [acceptance run](#acceptance-run) below is that walk, with its output.
 |---|---|
 | `search_places` | Find places by name (Hebrew or English) and return ranked candidate coordinates, each with a `{source, identifier}` ref and a link to the map site. |
 | `search_hiking_routes` | List hiking routes mapped near a point, nearest first, with length, any difficulty rating, and a link to the map site. |
-| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. |
+| `get_route_details` | Resolve one route ref into its GeoJSON line plus the title, description, length, climb and difficulty its source records. Resolves OSM and user-shared routes. **Draws a map** in hosts that support it. |
 | `find_pois_along_route` | List the springs, caves, viewpoints and other mapped points within a given distance of a route's line, nearest first, each with its distance in metres. |
-| `route_between_points` | Calculate a path between two points for walking, cycling or 4x4, using the map site's own routing engine. The one tool here whose answer is computed rather than recorded. |
+| `route_between_points` | Calculate a path between two points for walking, cycling or 4x4, using the map site's own routing engine. The one tool here whose answer is computed rather than recorded. **Draws a map** in hosts that support it. |
+
+The two tools that return a complete route line also render it as an interactive
+map in MCP Apps-compatible hosts — see [Inline trail map](#inline-trail-map).
+The map is an enhancement: every tool returns the same structured result, text
+mirror, warnings and attribution whether or not anything drew it.
 
 ### `search_places`
 
@@ -184,6 +269,12 @@ The [acceptance run](#acceptance-run) below is that walk, with its output.
 | `israelOnly` | boolean | `true` | Drop matches outside the Israel bounding box |
 | `language` | `he` \| `en` | `en` | Language of the returned names, and of the `ihmUrl` link |
 | `limit` | integer | `10` | 1–20 |
+
+Resolves a name — in Hebrew or English — into ranked candidate coordinates,
+each with a `{source, identifier}` ref that the route and POI tools accept and
+an `ihmUrl` that opens the place on the map site. It is the entry point for
+everything else here: the `{lat, lng}` it returns is the shape
+`search_hiking_routes` and `route_between_points` take.
 
 Upstream's search is a **worldwide** index — "Haifa" matches places in Syria,
 the United States, France and Chile before it reaches Haifa, Israel. Results
@@ -208,8 +299,11 @@ warning explaining what to try next. The tool never picks a candidate for you.
 | `language` | `he` \| `en` | `en` | Language of names, descriptions and the `ihmUrl` link |
 | `limit` | integer | `10` | 1–20 |
 
-Only hiking routes are returned. The same tiles carry cycling and 4x4 routes,
-which this tool does not search.
+Returns the hiking routes mapped around a point, nearest first, each with its
+length, any difficulty its source records, a `{source, identifier}` ref for
+`get_route_details` and `find_pois_along_route`, and a link to the map site.
+The routes are read out of the map's vector tiles, which is where they live —
+the same tiles carry cycling and 4x4 routes, which this tool does not search.
 
 Results are **deterministic**: the same centre, radius and constraints produce
 the same routes in the same order, sorted by distance from the search centre
@@ -383,9 +477,15 @@ not evidence that there is no water, and every response says so in `unknowns`.
 | `end` | `{lat, lng}` | — | Where to finish |
 | `activity` | `Hiking` \| `Bicycle` \| `4x4` | `Hiking` | Each uses a different set of ways |
 
-**This is the one tool here whose answer is a computation rather than a
-record.** Everything else this server returns is something a person put on a
-map. This is a line a routing engine drew just now by joining ways in a graph:
+Asks the map site's own routing engine for a path between two points and
+returns it as a GeoJSON `LineString`, with three profiles to choose from —
+walking, cycling and 4x4, each over a different set of ways. It is the one tool
+here that answers a question the map does not already hold an answer to.
+
+Which is also the thing to keep in mind: **its answer is a computation rather
+than a record.** Everything else this server returns is something a person put
+on a map. This is a line a routing engine drew just now by joining ways in a
+graph:
 nobody has walked it, and nothing in it knows about a gate, a fence, a firing
 zone or a stream in flood. Every response leads with a warning saying so, and it
 is not conditional on anything.
@@ -424,6 +524,80 @@ Calling one a route would be the most misleading thing this server could return.
 
 There is no `ihmUrl`: a calculated path is not a feature on the map site, and
 this server creates nothing upstream to link to.
+
+## Inline trail map
+
+`get_route_details` and `route_between_points` return a complete route line, so
+in hosts that implement [MCP Apps](https://github.com/modelcontextprotocol/ext-apps)
+their results also render as an interactive map, inline in the conversation.
+
+**What is drawn.** A recorded route in one colour, a calculated path in another
+— the two are never mistakable for each other, because one is a line somebody
+walked and the other is a line a router drew a moment ago. Around it: the
+metrics the source recorded, the tool's own warnings and `unknowns`, and the
+attribution. Below the map, not behind a click.
+
+Three things the picture is careful not to smooth over:
+
+- A route recorded as **several disconnected lines** is drawn as several lines.
+  The gaps are in the map data, and joining them would draw a path nobody
+  recorded.
+- A **calculated path whose ends were snapped** to the nearest mapped way shows
+  both the point requested and the point reached, with the ground between them
+  as a separate dashed segment. That ground is a walk the path does not include.
+- A **simplified line** says so, with the position counts and the tolerance the
+  backend applied.
+
+Nothing is recomputed in the browser. Lengths, ascent, warnings and unknowns are
+the values the tool returned, formatted — never derived from the drawn line,
+which may have been thinned.
+
+**Supported hosts.** Any client implementing the MCP Apps protocol; Claude
+Desktop and ChatGPT/Codex hosts among them. Only the portable protocol is used
+(`_meta.ui.resourceUri`, `text/html;profile=mcp-app`, and the standard `ui/*`
+bridge) — no `window.openai` or other host-specific API is on the required path.
+
+**Fallback.** A host that does not implement MCP Apps never reads the resource
+and loses nothing: the structured result, the JSON text mirror, the warnings,
+the unknowns and the attribution are exactly what they were. Terminal-only hosts
+such as Claude Code are in this category by design. The map must never be
+required to understand or safely use a result, and
+[tests/test_ui.py](tests/test_ui.py) asserts it.
+
+**Network.** The document carries its own script and stylesheet inline and
+fetches nothing. Its only outbound requests are basemap tiles from
+`https://tile.openstreetmap.org`, which is the single origin declared in the
+resource's CSP. That is a low-volume raster source, appropriate for a personal,
+non-commercial project; **a public deployment should pick a tile provider sized
+for its expected traffic** and update `TILE_ORIGIN` in
+[src/ihm_mcp/ui.py](src/ihm_mcp/ui.py) and `TILE_URL` in
+[ui/src/map.ts](ui/src/map.ts) together.
+
+### Changing the map
+
+The document served to hosts is a build artifact, committed at
+`src/ihm_mcp/assets/trail-map-v1.html`. Its source of truth is `ui/src`, and it
+is never hand-edited.
+
+```bash
+npm --prefix ui ci
+npm --prefix ui run build
+```
+
+That writes the single self-contained document back into the Python package.
+Committing the artifact is what keeps installing this server a Python-and-`uv`
+job — Node is a development dependency for UI changes only.
+
+The frontend splits at the boundaries that actually change independently:
+`bridge.ts` talks to the host, `normalize.ts` validates a raw result into a
+`MapViewModel`, `map.ts` draws one, and `main.ts` is the only place the three
+meet. `normalize.ts` is pure and carries the test suite; a future POI overlay
+should add a field and a layer without touching the bridge, the resource, or any
+tool contract.
+
+Version the resource URI — the filename, `TRAIL_MAP_RESOURCE_URI`, and the
+`ui/vite.config.ts` asset name — whenever the component's expectations of a
+result change incompatibly. Hosts may cache a `ui://` document.
 
 ## Known limitations
 
@@ -615,6 +789,16 @@ Before any public deployment, shared instance, or sustained automated querying:
 [API usage policy](https://operations.osmfoundation.org/policies/api/). A tool
 that makes it easy for a language model to fan out over somebody else's map
 tiles is exactly the kind of thing that gets an API closed for everybody.
+
+One more, now that results can be drawn: **a clean line on a map establishes
+nothing.** A route rendered in confident colour over a real basemap looks like a
+plan in a way the same coordinates in JSON never did — but the picture adds no
+information. It does not show that the route is open, permitted, waymarked,
+passable or safe, that the gaps between disconnected parts can be crossed, or
+that anything has been checked since somebody recorded it at an unknown date.
+For a calculated path it is weaker still: nothing there was ever walked. The
+warnings and `unknowns` beside the map are the answer; the map is an index to
+them.
 
 And the point the whole design turns on: **nothing here is a substitute for a
 current map, local knowledge, and carrying enough water.** An answer from this

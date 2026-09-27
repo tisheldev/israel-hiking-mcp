@@ -59,6 +59,23 @@ every line length tried it reformats between fifteen and twenty-six files.
 mypy is `strict` over `src`, which is clean and should stay that way. Tests are
 checked too, but are not required to annotate `def test_...() -> None`.
 
+## The inline trail map
+
+Node is not needed to run the server or the Python checks — the map ships as a
+prebuilt document at `src/ihm_mcp/assets/trail-map-v1.html`. It is a build
+artifact of `ui/src` and is never hand-edited. If you change the frontend:
+
+```bash
+npm --prefix ui ci
+npm --prefix ui test
+npm --prefix ui run build
+```
+
+The build writes the document back into the package, and the rebuilt artifact
+belongs in the same commit as the source change. See
+[Inline trail map](README.md#inline-trail-map) for what the map does and does
+not promise.
+
 ## The live tests
 
 ```bash
