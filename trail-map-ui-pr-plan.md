@@ -54,7 +54,7 @@ standard MCP Apps bridge -> result normalization -> MapViewModel
 
 ### Responsibilities
 
-- `src/ihm_mcp/ui.py` owns only the MCP resource URI, resource metadata, and
+- `src/mapeak_mcp/ui.py` owns only the MCP resource URI, resource metadata, and
   loading the packaged HTML.
 - Existing tool modules own only tool metadata linking their result to the UI
   resource. They do not gain rendering logic.
@@ -122,7 +122,7 @@ single map.
 
 Build one self-contained HTML document. Commit the generated artifact at:
 
-- `src/ihm_mcp/assets/trail-map-v1.html`
+- `src/mapeak_mcp/assets/trail-map-v1.html`
 
 The generated file is not hand-edited; `ui/src` is its source of truth. Keeping
 the artifact in the Python package means users still need only Python and `uv`
@@ -180,7 +180,7 @@ For both result types:
 
 ### 4. Register the MCP Apps resource
 
-Add `src/ihm_mcp/ui.py` with:
+Add `src/mapeak_mcp/ui.py` with:
 
 - A single `TRAIL_MAP_RESOURCE_URI` constant, for example
   `ui://israel-hiking/trail-map-v1.html`.
@@ -200,8 +200,8 @@ distributions.
 
 Update the completed versions of:
 
-- `src/ihm_mcp/tools/routes.py`
-- `src/ihm_mcp/tools/routing.py`
+- `src/mapeak_mcp/tools/routes.py`
+- `src/mapeak_mcp/tools/routing.py`
 
 Add standard tool metadata:
 

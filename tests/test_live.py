@@ -31,8 +31,8 @@ from typing import Any
 
 import pytest
 
-from ihm_mcp.pois import WATER_CAUTION
-from ihm_mcp.tools.routing import CALCULATED_PATH
+from mapeak_mcp.pois import WATER_CAUTION
+from mapeak_mcp.tools.routing import CALCULATED_PATH
 from tests.conftest import connected_session
 
 pytestmark = pytest.mark.live
@@ -70,7 +70,7 @@ async def test_a_place_search_finds_haifa_in_israel_first():
     first = result["places"][0]
     assert first["inIsrael"] is True
     assert "Haifa" in first["displayName"]
-    assert first["ihmUrl"].startswith("https://mapeak.com/poi/")
+    assert first["mapeakUrl"].startswith("https://mapeak.com/poi/")
     assert first["ref"]["source"] and first["ref"]["identifier"]
 
 
@@ -95,7 +95,7 @@ async def test_hiking_routes_are_mapped_around_haifa():
     for route in result["routes"]:
         assert route["title"]
         assert route["ref"]["source"] and route["ref"]["identifier"]
-        assert route["ihmUrl"].startswith("https://mapeak.com/")
+        assert route["mapeakUrl"].startswith("https://mapeak.com/")
         assert route["distanceFromSearchCenterKm"] <= 15
         assert route["lengthKm"] is None or 4 <= route["lengthKm"] <= 12
     # Nearest first, and the same list twice — the guarantee the tool makes.
@@ -136,7 +136,7 @@ async def test_a_shared_route_resolves_with_its_authors_own_words():
     result = await call("get_route_details", route=SHARED_ROUTE)
 
     assert result["title"]
-    assert result["ihmUrl"] == "https://mapeak.com/share/iXKu2M4BV5"
+    assert result["mapeakUrl"] == "https://mapeak.com/share/iXKu2M4BV5"
     assert result["geometry"]["coordinates"]
     assert any("one person's saved" in warning for warning in result["warnings"])
 

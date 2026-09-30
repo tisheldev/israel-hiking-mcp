@@ -38,17 +38,17 @@ from typing import Annotated, Any
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from ihm_mcp.app import ToolContext, app_context, tool
-from ihm_mcp.errors import (
+from mapeak_mcp.app import ToolContext, app_context, tool
+from mapeak_mcp.errors import (
     InvalidInputError,
     RouteNotFoundError,
     UpstreamNotFound,
     UpstreamSchemaChangedError,
     tool_errors,
 )
-from ihm_mcp.models import (
-    IHM_ATTRIBUTION,
+from mapeak_mcp.models import (
     ISRAEL_BBOX,
+    MAPEAK_ATTRIBUTION,
     Activity,
     Attribution,
     Coordinates,
@@ -58,7 +58,7 @@ from ihm_mcp.models import (
     PathEnd,
     Position,
 )
-from ihm_mcp.spatial import (
+from mapeak_mcp.spatial import (
     METRES_PER_KM,
     fit_geometry,
     haversine_km,
@@ -66,7 +66,7 @@ from ihm_mcp.spatial import (
     positions,
     reported_km,
 )
-from ihm_mcp.ui import TRAIL_MAP_TOOL_META
+from mapeak_mcp.ui import TRAIL_MAP_TOOL_META
 
 logger = logging.getLogger(__name__)
 
@@ -384,7 +384,7 @@ async def route_between_points(
         ),
     ] = "Hiking",
 ) -> CalculatedRoute:
-    """Calculate a path between two points using the Israel Hiking Map's router.
+    """Calculate a path between two points using Mapeak's router.
 
     Returns the line the map site's own routing engine draws between `start` and
     `end` for the chosen activity, as GeoJSON, with its length and how far each
@@ -413,7 +413,7 @@ async def route_between_points(
     straight_km = check_separation(start, end)
 
     try:
-        payload = await app.ihm.get_json(
+        payload = await app.mapeak.get_json(
             "/api/routing",
             params={
                 "from": f"{start.lat},{start.lng}",
@@ -425,12 +425,12 @@ async def route_between_points(
         # The endpoint answers 200 with a feature or not at all; a 404 here is
         # the route moving, not a path that does not exist.
         raise UpstreamSchemaChangedError(
-            f"The routing endpoint is gone from {app.ihm.host}."
+            f"The routing endpoint is gone from {app.mapeak.host}."
         ) from None
 
-    routing = parse(payload, host=app.ihm.host)
-    check_profile(routing, activity, host=app.ihm.host)
-    path = path_of(routing, host=app.ihm.host)
+    routing = parse(payload, host=app.mapeak.host)
+    check_profile(routing, activity, host=app.mapeak.host)
+    path = path_of(routing, host=app.mapeak.host)
     if len(path) < 2:
         raise RouteNotFoundError(
             "The map's router answered with a single position rather than a "
@@ -464,5 +464,5 @@ async def route_between_points(
         geometryDetail=detail,
         unknowns=ROUTING_UNKNOWNS,
         warnings=warnings_for(start=at_start, end=at_end, detail=detail),
-        attribution=IHM_ATTRIBUTION,
+        attribution=MAPEAK_ATTRIBUTION,
     )

@@ -6,7 +6,7 @@ volunteers. That shapes most of what follows, so please read
 
 ## Reporting a bug
 
-Open an [issue](https://github.com/tisheldev/israel-hiking-mcp/issues). The
+Open an [issue](https://github.com/tisheldev/mapeak-mcp/issues). The
 template asks for four things, and the report is usually unactionable without
 them:
 
@@ -14,8 +14,8 @@ them:
 - **what came back** — the error code, or the part of the response that was
   wrong;
 - **the stderr log**. Nothing this server prints goes to stdout, so the log is
-  the only place a cause is recorded. Set `IHM_LOG_LEVEL=DEBUG` and include it;
-- **`israel-hiking-mcp --version`**, and how you installed it.
+  the only place a cause is recorded. Set `MAPEAK_LOG_LEVEL=DEBUG` and include it;
+- **`mapeak-mcp --version`**, and how you installed it.
 
 Please redact nothing but your own coordinates if you would rather not share
 them — the rest of the log is upstream URLs and timings, and the server never
@@ -62,7 +62,7 @@ checked too, but are not required to annotate `def test_...() -> None`.
 ## The inline trail map
 
 Node is not needed to run the server or the Python checks — the map ships as a
-prebuilt document at `src/ihm_mcp/assets/trail-map-v1.html`. It is a build
+prebuilt document at `src/mapeak_mcp/assets/trail-map-v1.html`. It is a build
 artifact of `ui/src` and is never hand-edited. If you change the frontend:
 
 ```bash

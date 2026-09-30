@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ihm_mcp.models import Language
+from mapeak_mcp.models import Language
 
 Properties = dict[str, Any]
 

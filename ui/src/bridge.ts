@@ -25,7 +25,7 @@ import type { ResultSource } from "./types.js";
  * document can render, and it moves with `TRAIL_MAP_RESOURCE_URI`.
  */
 const APP_INFO = {
-  name: "israel-hiking-trail-map",
+  name: "mapeak-trail-map",
   version: "1.0.0",
 } as const;
 

@@ -18,7 +18,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const ASSET_NAME = "trail-map-v1.html";
 
 /** Where the built document lands, inside the Python package. */
-const ASSET_DIR = resolve(here, "../src/ihm_mcp/assets");
+const ASSET_DIR = resolve(here, "../src/mapeak_mcp/assets");
 
 /**
  * Rename Vite's `index.html` to the versioned asset the server registers.

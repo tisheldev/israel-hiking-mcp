@@ -28,19 +28,19 @@ from functools import cache
 from importlib.resources import files
 from typing import Any, Final
 
-from ihm_mcp.app import mcp
+from mapeak_mcp.app import mcp
 
 #: The one name for this component. Tools advertise it, the host reads it, and
 #: `assets/` holds the file it resolves to — change it in one place or not at
 #: all.
-TRAIL_MAP_RESOURCE_URI: Final = "ui://israel-hiking/trail-map-v1.html"
+TRAIL_MAP_RESOURCE_URI: Final = "ui://mapeak/trail-map-v1.html"
 
 #: What MCP Apps calls an HTML view. The `profile` parameter is what separates
 #: a document a host should frame from one it should merely display.
 TRAIL_MAP_MIME_TYPE: Final = "text/html;profile=mcp-app"
 
 #: The built document, inside the installed package.
-ASSET_PACKAGE: Final = "ihm_mcp"
+ASSET_PACKAGE: Final = "mapeak_mcp"
 ASSET_NAME: Final = "assets/trail-map-v1.html"
 
 #: The basemap the document requests tiles from, and the only origin it is

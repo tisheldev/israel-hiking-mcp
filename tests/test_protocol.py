@@ -15,7 +15,7 @@ import pytest
 import respx
 from mcp.types import TextContent
 
-from ihm_mcp.config import get_settings
+from mapeak_mcp.config import get_settings
 from tests.conftest import connected_session
 
 BASE_URL = str(get_settings().base_url).rstrip("/")

@@ -5,15 +5,15 @@ import os
 import pytest
 from pydantic import ValidationError
 
-from ihm_mcp import __version__
-from ihm_mcp.config import ConfigurationError, Settings, get_settings, load_settings
+from mapeak_mcp import __version__
+from mapeak_mcp.config import ConfigurationError, Settings, get_settings, load_settings
 
 
 @pytest.fixture(autouse=True)
 def clean_env(monkeypatch: pytest.MonkeyPatch):
-    """No IHM_* variable from the developer's shell may reach these tests."""
+    """No MAPEAK_* variable from the developer's shell may reach these tests."""
     for name in list(os.environ):
-        if name.startswith("IHM_"):
+        if name.startswith("MAPEAK_"):
             monkeypatch.delenv(name, raising=False)
     get_settings.cache_clear()
     yield
@@ -36,16 +36,16 @@ def test_user_agent_identifies_the_project_and_version():
     """Upstream admins must be able to tell who this traffic is and contact us."""
     user_agent = load_settings().user_agent
 
-    assert "israel-hiking-mcp" in user_agent
+    assert "mapeak-mcp" in user_agent
     assert __version__ in user_agent
     assert "https://github.com/" in user_agent
 
 
 def test_environment_overrides_are_parsed_and_coerced(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("IHM_BASE_URL", "https://staging.example.com")
-    monkeypatch.setenv("IHM_REQUEST_TIMEOUT_SECONDS", "2.5")
-    monkeypatch.setenv("IHM_MAX_CONCURRENT_REQUESTS", "1")
-    monkeypatch.setenv("IHM_CACHE_TTL_SECONDS", "0")
+    monkeypatch.setenv("MAPEAK_BASE_URL", "https://staging.example.com")
+    monkeypatch.setenv("MAPEAK_REQUEST_TIMEOUT_SECONDS", "2.5")
+    monkeypatch.setenv("MAPEAK_MAX_CONCURRENT_REQUESTS", "1")
+    monkeypatch.setenv("MAPEAK_CACHE_TTL_SECONDS", "0")
 
     settings = load_settings()
 
@@ -58,19 +58,19 @@ def test_environment_overrides_are_parsed_and_coerced(monkeypatch: pytest.Monkey
 @pytest.mark.parametrize(
     ("variable", "value"),
     [
-        ("IHM_REQUEST_TIMEOUT_SECONDS", "0"),
-        ("IHM_REQUEST_TIMEOUT_SECONDS", "600"),
-        ("IHM_REQUEST_TIMEOUT_SECONDS", "soon"),
-        ("IHM_MAX_CONCURRENT_REQUESTS", "0"),
-        ("IHM_MAX_CONCURRENT_REQUESTS", "500"),
-        ("IHM_CACHE_TTL_SECONDS", "-1"),
-        ("IHM_CACHE_MAX_ENTRIES", "0"),
-        ("IHM_MAX_TILES_PER_TOOL_CALL", "100000"),
-        ("IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL", "0"),
-        ("IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL", "1000"),
-        ("IHM_BASE_URL", "not-a-url"),
-        ("IHM_OSM_API_URL", "api.openstreetmap.org"),
-        ("IHM_USER_AGENT", ""),
+        ("MAPEAK_REQUEST_TIMEOUT_SECONDS", "0"),
+        ("MAPEAK_REQUEST_TIMEOUT_SECONDS", "600"),
+        ("MAPEAK_REQUEST_TIMEOUT_SECONDS", "soon"),
+        ("MAPEAK_MAX_CONCURRENT_REQUESTS", "0"),
+        ("MAPEAK_MAX_CONCURRENT_REQUESTS", "500"),
+        ("MAPEAK_CACHE_TTL_SECONDS", "-1"),
+        ("MAPEAK_CACHE_MAX_ENTRIES", "0"),
+        ("MAPEAK_MAX_TILES_PER_TOOL_CALL", "100000"),
+        ("MAPEAK_MAX_OSM_REQUESTS_PER_TOOL_CALL", "0"),
+        ("MAPEAK_MAX_OSM_REQUESTS_PER_TOOL_CALL", "1000"),
+        ("MAPEAK_BASE_URL", "not-a-url"),
+        ("MAPEAK_OSM_API_URL", "api.openstreetmap.org"),
+        ("MAPEAK_USER_AGENT", ""),
     ],
 )
 def test_bad_values_are_rejected_and_name_the_variable(
@@ -93,10 +93,10 @@ def test_settings_are_immutable():
 
 
 def test_get_settings_parses_the_environment_once(monkeypatch: pytest.MonkeyPatch):
-    monkeypatch.setenv("IHM_CACHE_TTL_SECONDS", "11")
+    monkeypatch.setenv("MAPEAK_CACHE_TTL_SECONDS", "11")
     first = get_settings()
 
-    monkeypatch.setenv("IHM_CACHE_TTL_SECONDS", "22")
+    monkeypatch.setenv("MAPEAK_CACHE_TTL_SECONDS", "22")
     assert get_settings() is first
     assert get_settings().cache_ttl_seconds == 11
 
@@ -104,8 +104,8 @@ def test_get_settings_parses_the_environment_once(monkeypatch: pytest.MonkeyPatc
     assert get_settings().cache_ttl_seconds == 22
 
 
-def test_unknown_ihm_variables_are_ignored(monkeypatch: pytest.MonkeyPatch):
-    """`IHM_LOG_LEVEL` is read by logging, not by Settings; it must not error."""
-    monkeypatch.setenv("IHM_LOG_LEVEL", "DEBUG")
+def test_unknown_mapeak_variables_are_ignored(monkeypatch: pytest.MonkeyPatch):
+    """`MAPEAK_LOG_LEVEL` is read by logging, not by Settings; it must not error."""
+    monkeypatch.setenv("MAPEAK_LOG_LEVEL", "DEBUG")
 
     assert isinstance(load_settings(), Settings)

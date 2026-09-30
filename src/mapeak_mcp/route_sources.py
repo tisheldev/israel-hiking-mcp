@@ -9,7 +9,7 @@ which sources this server can resolve at all.
 
 A source with no adapter is refused by name. Guessing a URL for it — inventing
 `/api/nakeb/{id}` because the identifier looks numeric — is how a server starts
-reporting confident nonsense, and a caller can still open the `ihmUrl` that
+reporting confident nonsense, and a caller can still open the `mapeakUrl` that
 came back with the search result.
 
 The two adapters here answer the same questions from data that agrees about
@@ -27,17 +27,17 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from ihm_mcp import tiles
-from ihm_mcp.app import AppContext
-from ihm_mcp.errors import (
+from mapeak_mcp import tiles
+from mapeak_mcp.app import AppContext
+from mapeak_mcp.errors import (
     InvalidInputError,
     RouteNotFoundError,
     UnsupportedSourceError,
     UpstreamNotFound,
     UpstreamSchemaChangedError,
 )
-from ihm_mcp.ihm_client import UpstreamClient
-from ihm_mcp.models import (
+from mapeak_mcp.mapeak_client import UpstreamClient
+from mapeak_mcp.models import (
     Coordinates,
     Difficulty,
     FeatureRef,
@@ -48,8 +48,8 @@ from ihm_mcp.models import (
     poi_url,
     share_url,
 )
-from ihm_mcp.osm import OsmApi, OsmFeature
-from ihm_mcp.spatial import (
+from mapeak_mcp.osm import OsmApi, OsmFeature
+from mapeak_mcp.spatial import (
     METRES_PER_KM,
     geometry_of,
     positions,
@@ -153,7 +153,7 @@ class UsersAdapter:
     )
 
     def __init__(self, app: AppContext) -> None:
-        self.client: UpstreamClient = app.ihm
+        self.client: UpstreamClient = app.mapeak
         self.base_url = str(app.settings.base_url)
 
     async def resolve(self, ref: FeatureRef, language: Language) -> ResolvedRoute:
@@ -184,7 +184,7 @@ class UsersAdapter:
             descentMeters=climb(share.loss),
             startPoint=stated_start(share) or start_of(geometry),
             geometry=geometry,
-            ihmUrl=share_url(self.base_url, share.id),
+            mapeakUrl=share_url(self.base_url, share.id),
         )
 
     async def fetch(self, identifier: str) -> UpstreamShare:
@@ -262,7 +262,7 @@ class OsmAdapter:
             descentMeters=climb(tiles.number(tags, "descent")),
             startPoint=start_of(geometry),
             geometry=geometry,
-            ihmUrl=poi_url(self.base_url, ref, language),
+            mapeakUrl=poi_url(self.base_url, ref, language),
         )
 
 
@@ -281,7 +281,7 @@ def adapter_for(source: str, app: AppContext) -> RouteSourceAdapter:
         resolvable = ", ".join(sorted(ADAPTERS)) or "none"
         raise UnsupportedSourceError(
             f"This server cannot resolve routes from `{source}`; it resolves "
-            f"{resolvable}. Open the route's `ihmUrl` on the map site instead."
+            f"{resolvable}. Open the route's `mapeakUrl` on the map site instead."
         )
     return factory(app)
 

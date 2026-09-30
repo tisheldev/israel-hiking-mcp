@@ -29,7 +29,7 @@ def one_line(text: str) -> str:
     return collapsed
 
 
-class IhmError(Exception):
+class MapeakError(Exception):
     """Base class for every failure a tool is allowed to report."""
 
     code: ClassVar[str]
@@ -45,43 +45,43 @@ class IhmError(Exception):
         return f"{text} {self.hint}" if self.hint else text
 
 
-class InvalidInputError(IhmError):
+class InvalidInputError(MapeakError):
     code = "invalid_input"
 
 
-class PlaceNotFoundError(IhmError):
+class PlaceNotFoundError(MapeakError):
     code = "place_not_found"
 
 
-class RouteNotFoundError(IhmError):
+class RouteNotFoundError(MapeakError):
     code = "route_not_found"
 
 
-class UnsupportedSourceError(IhmError):
+class UnsupportedSourceError(MapeakError):
     """This server cannot resolve that source — better than guessing a URL."""
 
     code = "unsupported_source"
 
 
-class SearchAreaTooLargeError(IhmError):
+class SearchAreaTooLargeError(MapeakError):
     code = "search_area_too_large"
 
 
-class GeometryTooLargeError(IhmError):
+class GeometryTooLargeError(MapeakError):
     code = "geometry_too_large"
 
 
-class UpstreamTimeoutError(IhmError):
+class UpstreamTimeoutError(MapeakError):
     code = "upstream_timeout"
     retryable = True
 
 
-class UpstreamUnavailableError(IhmError):
+class UpstreamUnavailableError(MapeakError):
     code = "upstream_unavailable"
     retryable = True
 
 
-class UpstreamSchemaChangedError(IhmError):
+class UpstreamSchemaChangedError(MapeakError):
     """Upstream answered in a shape we do not understand.
 
     The APIs behind this server have no published contract, so this is the
@@ -91,7 +91,7 @@ class UpstreamSchemaChangedError(IhmError):
     code = "upstream_schema_changed"
 
 
-class RateLimitedError(IhmError):
+class RateLimitedError(MapeakError):
     code = "rate_limited"
     retryable = True
 
@@ -111,7 +111,7 @@ def tool_errors(fn: F) -> F:
     async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await fn(*args, **kwargs)
-        except IhmError:
+        except MapeakError:
             raise
         except Exception as exc:
             logger.exception("unexpected error in tool %s", fn.__name__)

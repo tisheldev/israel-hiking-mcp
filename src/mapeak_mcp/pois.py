@@ -22,8 +22,8 @@ caller can rely on.
 
 from __future__ import annotations
 
-from ihm_mcp import tiles
-from ihm_mcp.models import (
+from mapeak_mcp import tiles
+from mapeak_mcp.models import (
     MAPPED_FEATURE,
     POI_CATEGORIES,
     Language,
@@ -32,8 +32,8 @@ from ihm_mcp.models import (
     PoiCategory,
     poi_url,
 )
-from ihm_mcp.spatial import Corridor
-from ihm_mcp.tiles import TilePoint
+from mapeak_mcp.spatial import Corridor
+from mapeak_mcp.tiles import TilePoint
 
 #: `poiIcon` to the label the map site itself puts on that icon, from
 #: `POINTS_OF_INTEREST_CATEGORIES` in `initial-state.ts` where it names one and
@@ -211,7 +211,7 @@ def poi_along_route(
         distanceFromRouteMeters=distance_meters,
         evidence=MAPPED_FEATURE,
         caution=caution_for(category),
-        ihmUrl=poi_url(base_url, point.ref, language),
+        mapeakUrl=poi_url(base_url, point.ref, language),
     )
 
 

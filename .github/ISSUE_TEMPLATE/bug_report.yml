@@ -46,7 +46,7 @@ body:
       label: The stderr log
       description: >
         Nothing this server prints goes to stdout, so the log is the only place
-        a cause is recorded. Run the host with `IHM_LOG_LEVEL=DEBUG` and paste
+        a cause is recorded. Run the host with `MAPEAK_LOG_LEVEL=DEBUG` and paste
         what came out on stderr. It contains upstream URLs and timings — and no
         credentials, because the server never has any.
       render: shell
@@ -57,8 +57,8 @@ body:
     id: version
     attributes:
       label: Version
-      description: The output of `israel-hiking-mcp --version`.
-      placeholder: israel-hiking-mcp 0.1.0
+      description: The output of `mapeak-mcp --version`.
+      placeholder: mapeak-mcp 0.1.0
     validations:
       required: true
 

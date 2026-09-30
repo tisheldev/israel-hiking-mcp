@@ -22,8 +22,8 @@ from dataclasses import dataclass
 
 import shapely
 
-from ihm_mcp.errors import GeometryTooLargeError
-from ihm_mcp.models import (
+from mapeak_mcp.errors import GeometryTooLargeError
+from mapeak_mcp.models import (
     BoundingBox,
     Coordinates,
     GeometryDetail,

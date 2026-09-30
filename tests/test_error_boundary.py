@@ -12,7 +12,7 @@ import pytest
 from mcp.server.fastmcp import FastMCP
 from mcp.types import TextContent
 
-from ihm_mcp.errors import (
+from mapeak_mcp.errors import (
     InvalidInputError,
     UpstreamNotFound,
     UpstreamTimeoutError,

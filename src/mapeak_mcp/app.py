@@ -19,9 +19,9 @@ from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.session import ServerSession
 from mcp.types import ToolAnnotations
 
-from ihm_mcp import SERVER_NAME, __version__
-from ihm_mcp.config import Settings, get_settings
-from ihm_mcp.ihm_client import UpstreamClient
+from mapeak_mcp import SERVER_NAME, __version__
+from mapeak_mcp.config import Settings, get_settings
+from mapeak_mcp.mapeak_client import UpstreamClient
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class AppContext:
     """
 
     settings: Settings
-    ihm: UpstreamClient
+    mapeak: UpstreamClient
     osm: UpstreamClient
 
 
@@ -60,7 +60,7 @@ async def lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
     """
     settings = get_settings()
     async with (
-        UpstreamClient(settings) as ihm,
+        UpstreamClient(settings) as mapeak,
         UpstreamClient(settings, base_url=str(settings.osm_api_url)) as osm,
     ):
         logger.info(
@@ -68,7 +68,7 @@ async def lifespan(_: FastMCP) -> AsyncIterator[AppContext]:
             settings.base_url,
             settings.osm_api_url,
         )
-        yield AppContext(settings=settings, ihm=ihm, osm=osm)
+        yield AppContext(settings=settings, mapeak=mapeak, osm=osm)
 
 
 mcp = FastMCP(SERVER_NAME, lifespan=lifespan)

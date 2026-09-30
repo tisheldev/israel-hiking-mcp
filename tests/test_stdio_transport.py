@@ -17,7 +17,7 @@ from dataclasses import dataclass
 import pytest
 from mcp.types import LATEST_PROTOCOL_VERSION
 
-from ihm_mcp import SERVER_NAME, __version__
+from mapeak_mcp import SERVER_NAME, __version__
 
 REQUESTS = [
     {
@@ -56,9 +56,9 @@ class Session:
 
 def run_server_session() -> Session:
     """Send the exchange, collect every reply, then close stdin to shut down."""
-    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "IHM_LOG_LEVEL": "INFO"}
+    env = {**os.environ, "PYTHONIOENCODING": "utf-8", "MAPEAK_LOG_LEVEL": "INFO"}
     proc = subprocess.Popen(
-        [sys.executable, "-m", "ihm_mcp.server"],
+        [sys.executable, "-m", "mapeak_mcp.server"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -161,5 +161,5 @@ def test_stdio_session_answers_every_request(session: Session):
 def test_logs_go_to_stderr_and_shutdown_is_clean(session: Session):
     assert f"starting {SERVER_NAME}" in session.stderr
     # The stderr formatter's signature must never appear on the protocol channel.
-    assert "INFO ihm_mcp" not in "".join(session.stdout_lines)
+    assert "INFO mapeak_mcp" not in "".join(session.stdout_lines)
     assert session.returncode == 0, f"unclean shutdown; stderr:\n{session.stderr}"

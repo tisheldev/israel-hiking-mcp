@@ -1,7 +1,7 @@
 [project]
-name = "israel-hiking-mcp"
+name = "mapeak-mcp"
 version = "0.1.0"
-description = "MCP server bringing Israel Hiking Map (Mapeak) trail data to LLM hosts: places, routes, POIs and routing"
+description = "Unofficial MCP server for Mapeak (formerly Israel Hiking Map): hiking places, routes, POIs and routing for LLM hosts"
 readme = "README.md"
 requires-python = ">=3.11"
 # CC BY-NC-SA 3.0, matching the upstream map data this server reads. The
@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 license = "CC-BY-NC-SA-3.0"
 license-files = ["LICENSE", "LICENSE-NOTICE.md"]
 authors = [{ name = "tishel", email = "86953330+Tishooshoo@users.noreply.github.com" }]
-keywords = ["mcp", "model-context-protocol", "hiking", "openstreetmap", "israel", "gis", "vector-tiles"]
+keywords = ["mapeak", "mcp", "model-context-protocol", "hiking", "openstreetmap", "israel", "gis", "vector-tiles"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -35,13 +35,13 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/tisheldev/israel-hiking-mcp"
-Repository = "https://github.com/tisheldev/israel-hiking-mcp"
-Issues = "https://github.com/tisheldev/israel-hiking-mcp/issues"
-Changelog = "https://github.com/tisheldev/israel-hiking-mcp/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/tisheldev/mapeak-mcp"
+Repository = "https://github.com/tisheldev/mapeak-mcp"
+Issues = "https://github.com/tisheldev/mapeak-mcp/issues"
+Changelog = "https://github.com/tisheldev/mapeak-mcp/blob/main/CHANGELOG.md"
 
 [project.scripts]
-israel-hiking-mcp = "ihm_mcp.server:main"
+mapeak-mcp = "mapeak_mcp.server:main"
 
 [dependency-groups]
 dev = [
@@ -58,15 +58,15 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ihm_mcp"]
+packages = ["src/mapeak_mcp"]
 # The trail-map document is built from ui/src and read at runtime through
 # importlib.resources, so it has to travel in the wheel as package data. Listed
 # as an artifact rather than left to the default file walk: it is generated,
 # and a build must not quietly ship a package whose UI resource is missing.
-artifacts = ["src/ihm_mcp/assets/*.html"]
+artifacts = ["src/mapeak_mcp/assets/*.html"]
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["src/ihm_mcp/assets/*.html"]
+artifacts = ["src/mapeak_mcp/assets/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

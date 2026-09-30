@@ -13,7 +13,7 @@ this server will not spend hundreds of requests on a volunteer-run map without
 telling the caller what it is about to cost.
 """
 
-from ihm_mcp.tiles.decode import (
+from mapeak_mcp.tiles.decode import (
     AREA_TYPES,
     DEFAULT_SOURCE,
     LAYERS,
@@ -23,7 +23,7 @@ from ihm_mcp.tiles.decode import (
     osm_identifier,
     stated_location,
 )
-from ihm_mcp.tiles.grid import (
+from mapeak_mcp.tiles.grid import (
     DEFAULT_ZOOM,
     MAX_ZOOM,
     MIN_BUFFER_METERS,
@@ -38,7 +38,7 @@ from ihm_mcp.tiles.grid import (
     tiles_for_corridor,
     tiles_for_radius,
 )
-from ihm_mcp.tiles.properties import (
+from mapeak_mcp.tiles.properties import (
     NAME_KEYS,
     Properties,
     description,
@@ -46,7 +46,7 @@ from ihm_mcp.tiles.properties import (
     text,
     title,
 )
-from ihm_mcp.tiles.reader import (
+from mapeak_mcp.tiles.reader import (
     TileFetcher,
     points_along_corridor,
     points_in_radius,

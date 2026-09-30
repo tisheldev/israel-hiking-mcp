@@ -18,10 +18,10 @@ import pytest
 import respx
 from mcp.types import TextContent
 
-from ihm_mcp.config import get_settings
-from ihm_mcp.errors import InvalidInputError
-from ihm_mcp.models import ISRAEL_BBOX, Coordinates
-from ihm_mcp.tools.places import normalize_query
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.errors import InvalidInputError
+from mapeak_mcp.models import ISRAEL_BBOX, Coordinates
+from mapeak_mcp.tools.places import normalize_query
 from tests.conftest import connected_session
 
 BASE_URL = str(get_settings().base_url).rstrip("/")
@@ -243,7 +243,7 @@ async def test_a_result_carries_its_identity_link_and_provenance(search: respx.R
     assert haifa["title"] == "Haifa"
     assert haifa["displayName"] == "Haifa, Haifa Subdistrict, Israel"
     assert haifa["coordinates"] == {"lat": 32.81912207506254, "lng": 34.998385570943356}
-    assert haifa["ihmUrl"] == f"{BASE_URL}/poi/OSM/node_1656107649?language=en"
+    assert haifa["mapeakUrl"] == f"{BASE_URL}/poi/OSM/node_1656107649?language=en"
     assert "CC BY-NC-SA" in " ".join(result["attribution"]["sources"])
     assert result["attribution"]["notice"]
 
@@ -253,7 +253,7 @@ async def test_language_reaches_upstream_and_the_link(search: respx.Route):
 
     assert search.calls.last.request.url.params["language"] == "he"
     assert result["language"] == "he"
-    assert result["places"][0]["ihmUrl"].endswith("?language=he")
+    assert result["places"][0]["mapeakUrl"].endswith("?language=he")
 
 
 async def test_a_nameless_feature_is_still_labelled(mock_upstream: respx.MockRouter):

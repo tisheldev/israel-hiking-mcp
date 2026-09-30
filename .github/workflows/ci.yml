@@ -97,7 +97,7 @@ jobs:
       - name: Start the server and require a clean stderr
         run: |
           printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"1"}}}' \
-            | timeout 30 uv run --no-sync israel-hiking-mcp 2>stderr.log >stdout.log || true
+            | timeout 30 uv run --no-sync mapeak-mcp 2>stderr.log >stdout.log || true
           echo "--- stderr ---"; cat stderr.log
           echo "--- stdout ---"; cat stdout.log
           grep -q '"serverInfo"' stdout.log || { echo "::error::server did not answer initialize"; exit 1; }

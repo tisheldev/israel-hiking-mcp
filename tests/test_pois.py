@@ -24,19 +24,19 @@ import mercantile
 import pytest
 import respx
 
-from ihm_mcp.config import get_settings
-from ihm_mcp.errors import SearchAreaTooLargeError
-from ihm_mcp.models import Coordinates, FeatureRef, LineString
-from ihm_mcp.pois import SUBTYPES, WATER_CAUTION, subtype_of
-from ihm_mcp.spatial import Corridor, metres_per_degree
-from ihm_mcp.tiles import (
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.errors import SearchAreaTooLargeError
+from mapeak_mcp.models import Coordinates, FeatureRef, LineString
+from mapeak_mcp.pois import SUBTYPES, WATER_CAUTION, subtype_of
+from mapeak_mcp.spatial import Corridor, metres_per_degree
+from mapeak_mcp.tiles import (
     Tile,
     corridor_tiles,
     covering_tiles,
     tile_path,
     tiles_for_corridor,
 )
-from ihm_mcp.tiles.decode import TilePoint
+from mapeak_mcp.tiles.decode import TilePoint
 from tests.conftest import connected_session
 
 BASE_URL = str(get_settings().base_url).rstrip("/")
@@ -337,7 +337,7 @@ async def test_a_point_carries_its_identity_classification_and_link(
     assert spring["coordinates"]["lat"] == pytest.approx(
         north_of(MIDDLE, 120).lat, abs=1e-4
     )
-    assert spring["ihmUrl"] == f"{BASE_URL}/poi/OSM/node_3?language=en"
+    assert spring["mapeakUrl"] == f"{BASE_URL}/poi/OSM/node_3?language=en"
     assert "CC BY-NC-SA" in " ".join(result["attribution"]["sources"])
 
 
@@ -350,7 +350,7 @@ async def test_the_route_that_was_scanned_is_echoed_back(
         "ref": ROUTE,
         "title": "Nahal Galim",
         "bufferMeters": 250,
-        "ihmUrl": f"{BASE_URL}/share/{SHARE_ID}",
+        "mapeakUrl": f"{BASE_URL}/share/{SHARE_ID}",
     }
 
 
@@ -726,7 +726,7 @@ async def test_a_scan_past_the_tile_budget_fails_rather_than_answering_partly(
     monkeypatch: pytest.MonkeyPatch, mock_upstream: respx.MockRouter
 ):
     serve(mock_upstream, tiles={HAIFA_TILE: tile_bytes(ALL_MARKERS)})
-    monkeypatch.setenv("IHM_MAX_TILES_PER_TOOL_CALL", "1")
+    monkeypatch.setenv("MAPEAK_MAX_TILES_PER_TOOL_CALL", "1")
     get_settings.cache_clear()
     try:
         # 2 km either side of a 1.5 km route spans more than one zoom-12 tile.

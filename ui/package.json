@@ -1,9 +1,9 @@
 {
-  "name": "israel-hiking-trail-map",
+  "name": "mapeak-trail-map",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Inline trail map view for the Israel Hiking MCP server, built as one self-contained MCP Apps document.",
+  "description": "Inline trail map view for the Mapeak MCP server, built as one self-contained MCP Apps document.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
