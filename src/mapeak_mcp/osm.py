@@ -35,16 +35,16 @@ from typing import Any, Literal, Self, cast, get_args
 
 from pydantic import BaseModel, ConfigDict, ValidationError
 
-from ihm_mcp.errors import (
+from mapeak_mcp.errors import (
     GeometryTooLargeError,
     InvalidInputError,
     RouteNotFoundError,
     UpstreamNotFound,
     UpstreamSchemaChangedError,
 )
-from ihm_mcp.ihm_client import UpstreamClient
-from ihm_mcp.models import Coordinates, Model, Position
-from ihm_mcp.spatial import merge_lines, positions
+from mapeak_mcp.mapeak_client import UpstreamClient
+from mapeak_mcp.models import Coordinates, Model, Position
+from mapeak_mcp.spatial import merge_lines, positions
 
 logger = logging.getLogger(__name__)
 

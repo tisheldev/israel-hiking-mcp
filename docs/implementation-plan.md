@@ -49,7 +49,7 @@ All verified against the local `Site` repo and minimal read-only requests to pro
 
 ## 3. Project layout
 
-As in the PRD §7 (`src/ihm_mcp/` with `server.py`, `config.py`, `models.py`, `errors.py`, `ihm_client.py`, `tiles.py`, `route_sources.py`, `spatial.py`, `tools/`, `tests/`). Modules are introduced PR by PR — the skeleton PR only creates what it needs.
+As in the PRD §7 (`src/mapeak_mcp/` with `server.py`, `config.py`, `models.py`, `errors.py`, `mapeak_client.py`, `tiles.py`, `route_sources.py`, `spatial.py`, `tools/`, `tests/`). Modules are introduced PR by PR — the skeleton PR only creates what it needs.
 
 ---
 
@@ -71,9 +71,9 @@ Each PR: small enough to review in one sitting, lands with its own tests, and ha
 ### PR 2 — Config, HTTP client, typed errors (`feat/http-foundation`)
 **What you learn:** disciplined outbound IO — timeouts everywhere, bounded concurrency, retry only on transient failures, responsible User-Agent, and error taxonomy design.
 
-- `config.py`: env-driven settings (`IHM_BASE_URL`, `IHM_REQUEST_TIMEOUT_SECONDS=10`, `IHM_USER_AGENT`, `IHM_CACHE_TTL_SECONDS=300`, `IHM_MAX_CONCURRENT_REQUESTS=4`, `IHM_MAX_TILES_PER_TOOL_CALL=100`) via pydantic-settings or plain dataclass.
+- `config.py`: env-driven settings (`MAPEAK_BASE_URL`, `MAPEAK_REQUEST_TIMEOUT_SECONDS=10`, `MAPEAK_USER_AGENT`, `MAPEAK_CACHE_TTL_SECONDS=300`, `MAPEAK_MAX_CONCURRENT_REQUESTS=4`, `MAPEAK_MAX_TILES_PER_TOOL_CALL=100`) via pydantic-settings or plain dataclass.
 - `errors.py`: the PRD's typed errors (`invalid_input`, `place_not_found`, `route_not_found`, `unsupported_source`, `search_area_too_large`, `geometry_too_large`, `upstream_timeout`, `upstream_unavailable`, `upstream_schema_changed`, `rate_limited`) as an exception hierarchy that serializes to concise tool errors — never raw HTML/stack traces/paths.
-- `ihm_client.py`: shared `httpx.AsyncClient` (semaphore-capped), `get_json`/`get_bytes`, in-memory TTL cache keyed by URL, bounded retry (1 retry on timeout/5xx only), HTTP status → typed-error mapping (404, 429, 5xx, invalid JSON).
+- `mapeak_client.py`: shared `httpx.AsyncClient` (semaphore-capped), `get_json`/`get_bytes`, in-memory TTL cache keyed by URL, bounded retry (1 retry on timeout/5xx only), HTTP status → typed-error mapping (404, 429, 5xx, invalid JSON).
 - Tests with respx: timeout, 404, 429, 5xx, invalid-body mapping; cache hit behavior; retry-once behavior.
 
 **Done when:** all upstream failure modes surface as the typed errors and nothing else.
@@ -82,7 +82,7 @@ Each PR: small enough to review in one sitting, lands with its own tests, and ha
 **What you learn:** designing agent-facing tool contracts — strict Pydantic input/output models, tool descriptions that state what the tool can't establish, provenance in every result.
 
 - `models.py`: `Coordinates`, `PlaceResult`, `Attribution`, `RouteRef`/`PoiRef` (`{source, identifier}` — identity is never a bare id).
-- `tools/places.py`: validate/trim/bound query (3–100 chars — upstream returns nothing under 3), call `/api/search/{term}`, normalize, build `ihmUrl` per source, **rank Israel-bbox results first** with an `israelOnly: bool = true` input (the global-results discrepancy above), return empty list on no match, never auto-select.
+- `tools/places.py`: validate/trim/bound query (3–100 chars — upstream returns nothing under 3), call `/api/search/{term}`, normalize, build `mapeakUrl` per source, **rank Israel-bbox results first** with an `israelOnly: bool = true` input (the global-results discrepancy above), return empty list on no match, never auto-select.
 - Hebrew + English test cases (URL-encoding of Hebrew terms), fixtures from the real response shape captured today.
 - MCP contract test updated: `search_places` listed with the expected schema.
 
@@ -94,8 +94,8 @@ Each PR: small enough to review in one sitting, lands with its own tests, and ha
 Pure library code, no new tool yet — this is deliberately a separate PR because it's the densest learning chunk.
 
 - `tiles.py`:
-  - `tiles_for_radius(center, radius_km, zoom)` via mercantile, returning a bounded tile set; raise `search_area_too_large` (with the actual count and the limit) past `IHM_MAX_TILES_PER_TOOL_CALL`.
-  - async fetch of `/vector/data/global_points/{z}/{x}/{y}.mvt` through `ihm_client` (cached, concurrency-capped).
+  - `tiles_for_radius(center, radius_km, zoom)` via mercantile, returning a bounded tile set; raise `search_area_too_large` (with the actual count and the limit) past `MAPEAK_MAX_TILES_PER_TOOL_CALL`.
+  - async fetch of `/vector/data/global_points/{z}/{x}/{y}.mvt` through `mapeak_client` (cached, concurrency-capped).
   - decode **both** `global_points` and `external` layers; convert tile-local coords to lng/lat; extract properties + MVT feature id.
   - port `osmTileFeatureToPoiIdentifier` (id-digit trick) and the `poiGeolocation`-string-parse quirk.
   - dedupe across overlapping tiles by `(source, identifier)`.
@@ -108,7 +108,7 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 
 - `models.py`: `RouteSummary`, `BoundingSearch`, warnings list.
 - `tools/routes.py`: validate (`radiusKm` 1–40, `limit` 1–20, lengths, difficulty enum `Easy/Moderate/Hard`), run tile engine at z12, keep `poiCategory == "Hiking"` (schema documents that only Hiking is returned in MVP), filter by length range / difficulty / start-distance ≤ radius (haversine), sort by (distance from center, constraint fit, ref) — stable and documented. *(As built: the enum is upstream's own four values — `Easy/Moderate/Hard/**Very Hard**` per `initial-state.ts` — and the rating reaches almost no route, 2 of 168 features in the live sample. Following `getPublicRoutes`, an unrated route passes any difficulty filter and the tool warns that it did. Sort is (distance, source, identifier): every constraint is a filter, so there is no partial "fit" left to rank on.)*
-- `distanceFromSearchCenterKm`, `lengthKm` from `poiLength/1000`, `ihmUrl`, `dataSource`, attribution, `searchedArea` echo.
+- `distanceFromSearchCenterKm`, `lengthKm` from `poiLength/1000`, `mapeakUrl`, `dataSource`, attribution, `searchedArea` echo.
 - **Verify live at this point that z12 tiles carry all route markers** (compare a z12 tile against its four z13/16 z14 children for a known area). If thinned, document and switch default zoom / lower max radius — this is the plan's flagged risk item.
 - Tests: filter/sort determinism, empty results, radius→budget errors, fixture-driven end-to-end of the tool.
 
@@ -118,7 +118,7 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 **What you learn:** adapter pattern for heterogeneous sources; converting a bespoke JSON shape (segments/latlngs) into GeoJSON; geometry simplification with explicit metadata.
 
 - `route_sources.py`: `RouteSourceAdapter` protocol — `resolve(ref, language) -> ResolvedRoute` (geometry + metadata). Registry keyed by source; unknown source → `unsupported_source` (no guessed URLs).
-- `UsersAdapter`: `GET /api/urls/{id}`, flatten `routes[].segments[].latlngs` → LineString/MultiLineString (port `convertShareUrlToPoi` logic), pull title/description/difficulty/length/gain when present (all optional — see discrepancy 4), `ihmUrl` = share link.
+- `UsersAdapter`: `GET /api/urls/{id}`, flatten `routes[].segments[].latlngs` → LineString/MultiLineString (port `convertShareUrlToPoi` logic), pull title/description/difficulty/length/gain when present (all optional — see discrepancy 4), `mapeakUrl` = share link.
 - `spatial.py`: `simplify_geometry(geom, tolerance)` (Shapely Douglas-Peucker) with a coordinate-count cap → `geometry_too_large` if still over; response carries `simplified: bool` + `toleranceM`.
 - `tools/routes.py`: `get_route_details` tool with fixed `unknowns` (closure status, water availability) and warnings.
 - Tests: dataContainer→GeoJSON fixture conversion, multi-route shares, simplification metadata, 404 → `route_not_found`.
@@ -136,7 +136,7 @@ Pure library code, no new tool yet — this is deliberately a separate PR becaus
 
 **Done when:** an OSM hiking relation from PR 5's search results returns a usable line geometry end-to-end.
 
-*(As built, 2026-08-14. **`osm2geojson` was not used**: the narrow path from elements to lines — node index, way node-refs, relation members in order — is about sixty lines, while the library's job is wholesale conversion including the polygon assembly nothing here needs. **Nested relations are fetched breadth-first with a worklist** rather than by recursion, each relation once however often it is referenced, bounded by a new `IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL` (16); past it the call fails `geometry_too_large` rather than returning part of a trail. `mergeLines` is ported with exact endpoint equality instead of the site's one-metre tolerance, since positions built from shared OSM nodes and rounded identically meet exactly. **A node ref is refused without a request** — a point cannot be a route. 410 Gone joins 404 in the HTTP client, because that is how OSM reports a deleted element. Adapters now take the whole `AppContext`, since the two of them talk to different hosts; the second client is built in the lifespan, with its own pool and cache.*
+*(As built, 2026-08-14. **`osm2geojson` was not used**: the narrow path from elements to lines — node index, way node-refs, relation members in order — is about sixty lines, while the library's job is wholesale conversion including the polygon assembly nothing here needs. **Nested relations are fetched breadth-first with a worklist** rather than by recursion, each relation once however often it is referenced, bounded by a new `MAPEAK_MAX_OSM_REQUESTS_PER_TOOL_CALL` (16); past it the call fails `geometry_too_large` rather than returning part of a trail. `mergeLines` is ported with exact endpoint equality instead of the site's one-metre tolerance, since positions built from shared OSM nodes and rounded identically meet exactly. **A node ref is refused without a request** — a point cannot be a route. 410 Gone joins 404 in the HTTP client, because that is how OSM reports a deleted element. Adapters now take the whole `AppContext`, since the two of them talk to different hosts; the second client is built in the lifespan, with its own pool and cache.*
 
 *Verified live on 2026-08-14 against the routes PR 5's Haifa search returns. `relation_282071` — the Israel National Trail, 2,480 member ways, 41,689 recorded positions — merges into **one continuous line** from Dan to Eilat and comes back thinned at 50 m to 2,850 positions. `relation_13207704` (Haifa Trail) is a relation of three sub-relations plus a way: four requests, 903 positions. Two findings changed the code: the thinning warning pointed at `lengthKm`, which is null for almost every OSM route, and **local route relations use a non-standard `length` tag rather than `distance`** — and disagree with it, one sampled Haifa Trail section tagging `length=3` where the map's computed length is 8.59 km. `length` is therefore not read, `distance` is, and both the tool description and the README send a caller to the search result's computed `lengthKm` instead. Fragmentation is real, not a merge failure: the downtown section's consecutive member ways end 3–200 m apart in eight places, so it is honestly ten lines.)*
 

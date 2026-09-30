@@ -26,10 +26,10 @@ from typing import Annotated
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from ihm_mcp.app import ToolContext, app_context, tool
-from ihm_mcp.errors import InvalidInputError, tool_errors
-from ihm_mcp.models import (
-    IHM_ATTRIBUTION,
+from mapeak_mcp.app import ToolContext, app_context, tool
+from mapeak_mcp.errors import InvalidInputError, tool_errors
+from mapeak_mcp.models import (
+    MAPEAK_ATTRIBUTION,
     Attribution,
     Coordinates,
     Difficulty,
@@ -42,17 +42,17 @@ from ihm_mcp.models import (
     RouteSummary,
     SearchedArea,
 )
-from ihm_mcp.route_markers import (
+from mapeak_mcp.route_markers import (
     RouteConstraints,
     is_hiking_marker,
     nearest_first,
     route_summary,
     within_radius,
 )
-from ihm_mcp.route_sources import adapter_for
-from ihm_mcp.spatial import fit_geometry, lines_of
-from ihm_mcp.tiles import points_in_radius
-from ihm_mcp.ui import TRAIL_MAP_TOOL_META
+from mapeak_mcp.route_sources import adapter_for
+from mapeak_mcp.spatial import fit_geometry, lines_of
+from mapeak_mcp.tiles import points_in_radius
+from mapeak_mcp.ui import TRAIL_MAP_TOOL_META
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +193,7 @@ async def search_hiking_routes(
         Field(description="Maximum number of routes to return.", ge=1, le=MAX_LIMIT),
     ] = DEFAULT_LIMIT,
 ) -> RouteSearchResult:
-    """Find hiking routes mapped near a point on the Israel Hiking Map.
+    """Find hiking routes mapped near a point on Mapeak, the Israeli hiking map.
 
     Returns routes whose start marker falls within `radiusKm` of `center`,
     nearest first, with their length, any difficulty rating, and a link to the
@@ -217,7 +217,7 @@ async def search_hiking_routes(
     )
 
     points = await points_in_radius(
-        app.ihm, center, radiusKm, max_tiles=app.settings.max_tiles_per_tool_call
+        app.mapeak, center, radiusKm, max_tiles=app.settings.max_tiles_per_tool_call
     )
 
     # The tiles overshoot the circle, so the radius is applied here, to the
@@ -252,7 +252,7 @@ async def search_hiking_routes(
             unnamed_markers=len(hiking_markers) - len(in_area),
             constraints=constraints,
         ),
-        attribution=IHM_ATTRIBUTION,
+        attribution=MAPEAK_ATTRIBUTION,
     )
 
 
@@ -317,7 +317,7 @@ class RouteDetails(ResolvedRoute):
             geometryDetail=detail,
             unknowns=ROUTE_UNKNOWNS,
             warnings=warnings,
-            attribution=IHM_ATTRIBUTION,
+            attribution=MAPEAK_ATTRIBUTION,
         )
 
 
@@ -384,7 +384,7 @@ async def get_route_details(
         ),
     ] = "en",
 ) -> RouteDetails:
-    """Get one route's shape and recorded details from the Israel Hiking Map.
+    """Get one route's shape and recorded details from Mapeak.
 
     Takes a `{source, identifier}` ref — the `ref` field of a
     `search_hiking_routes` result — and returns the route's line as GeoJSON,
@@ -395,7 +395,7 @@ async def get_route_details(
     identifiers like `relation_282071`), whose geometry is fetched from
     OpenStreetMap itself, and routes shared by users on the map site
     (`source: "Users"`). A ref from any other source — `Nakeb`, `iNature`,
-    `Wikidata` — comes back as `unsupported_source`; its `ihmUrl` from the
+    `Wikidata` — comes back as `unsupported_source`; its `mapeakUrl` from the
     search result still opens the route on the map site.
 
     An OSM route is assembled from the separate ways it is mapped as, joined

@@ -21,9 +21,9 @@ import mapbox_vector_tile
 import mercantile
 from pydantic import ValidationError
 
-from ihm_mcp.errors import UpstreamSchemaChangedError
-from ihm_mcp.models import Coordinates, FeatureRef, Model
-from ihm_mcp.tiles.grid import Tile, tile_path
+from mapeak_mcp.errors import UpstreamSchemaChangedError
+from mapeak_mcp.models import Coordinates, FeatureRef, Model
+from mapeak_mcp.tiles.grid import Tile, tile_path
 
 logger = logging.getLogger(__name__)
 

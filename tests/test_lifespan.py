@@ -1,20 +1,20 @@
 """The HTTP client's lifetime is tied to the session, not to a tool call."""
 
-from ihm_mcp.app import lifespan, mcp
-from ihm_mcp.config import get_settings
-from ihm_mcp.ihm_client import UpstreamClient
+from mapeak_mcp.app import lifespan, mcp
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.mapeak_client import UpstreamClient
 from tests.conftest import connected_session
 
 
 async def test_lifespan_shares_one_client_per_upstream_and_closes_them_on_shutdown():
     """Two hosts with two usage policies get two pools and two caches."""
     async with lifespan(mcp) as context:
-        assert isinstance(context.ihm, UpstreamClient)
+        assert isinstance(context.mapeak, UpstreamClient)
         assert isinstance(context.osm, UpstreamClient)
         assert context.settings is get_settings()
-        assert context.ihm.host == "mapeak.com"
+        assert context.mapeak.host == "mapeak.com"
         assert context.osm.host == "api.openstreetmap.org"
-        clients = (context.ihm, context.osm)
+        clients = (context.mapeak, context.osm)
         assert all(client.http.is_closed is False for client in clients)
 
     # A leaked connection pool would outlive the server it belongs to.

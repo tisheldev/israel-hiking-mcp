@@ -12,21 +12,21 @@ import httpx
 import pytest
 import respx
 
-from ihm_mcp.config import Settings
-from ihm_mcp.errors import (
+from mapeak_mcp.config import Settings
+from mapeak_mcp.errors import (
     RateLimitedError,
     UpstreamNotFound,
     UpstreamSchemaChangedError,
     UpstreamTimeoutError,
     UpstreamUnavailableError,
 )
-from ihm_mcp.ihm_client import UpstreamClient
+from mapeak_mcp.mapeak_client import UpstreamClient
 
 BASE_URL = "https://upstream.test"
 
 
 def make_settings(**overrides: Any) -> Settings:
-    """Explicit settings — never whatever IHM_* the developer's shell holds."""
+    """Explicit settings — never whatever MAPEAK_* the developer's shell holds."""
     values: dict[str, Any] = {
         "base_url": BASE_URL,
         "request_timeout_seconds": 1.0,
@@ -81,7 +81,7 @@ async def test_get_json_parses_the_body_and_identifies_this_client(
     assert await client.get_json("/api/search/haifa") == [{"title": "Haifa"}]
 
     request = route.calls.last.request
-    assert "israel-hiking-mcp/" in request.headers["user-agent"]
+    assert "mapeak-mcp/" in request.headers["user-agent"]
     assert request.headers["accept"] == "application/json"
 
 

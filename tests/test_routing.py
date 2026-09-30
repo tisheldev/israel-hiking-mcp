@@ -21,10 +21,10 @@ import httpx
 import pytest
 import respx
 
-from ihm_mcp.config import get_settings
-from ihm_mcp.models import Coordinates
-from ihm_mcp.spatial import METRES_PER_KM, haversine_km, metres_per_degree
-from ihm_mcp.tools.routing import CALCULATED_PATH, MAX_DISTANCE_KM
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.models import Coordinates
+from mapeak_mcp.spatial import METRES_PER_KM, haversine_km, metres_per_degree
+from mapeak_mcp.tools.routing import CALCULATED_PATH, MAX_DISTANCE_KM
 from tests.conftest import connected_session
 
 BASE_URL = str(get_settings().base_url).rstrip("/")

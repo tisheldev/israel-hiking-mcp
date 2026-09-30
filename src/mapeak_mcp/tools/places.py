@@ -21,16 +21,16 @@ from urllib.parse import quote
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
-from ihm_mcp.app import ToolContext, app_context, tool
-from ihm_mcp.errors import (
+from mapeak_mcp.app import ToolContext, app_context, tool
+from mapeak_mcp.errors import (
     InvalidInputError,
     UpstreamNotFound,
     UpstreamSchemaChangedError,
     tool_errors,
 )
-from ihm_mcp.models import (
-    IHM_ATTRIBUTION,
+from mapeak_mcp.models import (
     ISRAEL_BBOX,
+    MAPEAK_ATTRIBUTION,
     Attribution,
     Coordinates,
     FeatureRef,
@@ -144,7 +144,7 @@ def place_result(raw: UpstreamPlace, *, base_url: str, language: Language) -> Pl
         coordinates=coordinates,
         inIsrael=ISRAEL_BBOX.contains(coordinates),
         hasExtraData=raw.hasExtraData,
-        ihmUrl=poi_url(base_url, ref, language),
+        mapeakUrl=poi_url(base_url, ref, language),
     )
 
 
@@ -204,7 +204,7 @@ async def search_places(
         Field(description="Maximum number of candidates to return.", ge=1, le=MAX_LIMIT),
     ] = DEFAULT_LIMIT,
 ) -> PlaceSearchResult:
-    """Find places on the Israel Hiking Map by name and get their coordinates.
+    """Find places on Mapeak, the Israeli hiking map, by name and get their coordinates.
 
     Use this to turn a name into coordinates for the other tools here. It
     returns candidates ranked best-first and never picks one — when more than
@@ -223,19 +223,19 @@ async def search_places(
     term = normalize_query(query)
 
     try:
-        payload = await app.ihm.get_json(
+        payload = await app.mapeak.get_json(
             f"/api/search/{quote(term, safe='')}", params={"language": language}
         )
     except UpstreamNotFound:
         # A term with no match answers 200 with `[]`, so a 404 here means the
         # endpoint moved rather than that the place is unknown.
         raise UpstreamSchemaChangedError(
-            f"The place search endpoint is gone from {app.ihm.host}."
+            f"The place search endpoint is gone from {app.mapeak.host}."
         ) from None
 
     places = normalize(
         payload,
-        host=app.ihm.host,
+        host=app.mapeak.host,
         base_url=str(app.settings.base_url),
         language=language,
     )
@@ -254,5 +254,5 @@ async def search_places(
             kept=len(kept),
             israel_only=israelOnly,
         ),
-        attribution=IHM_ATTRIBUTION,
+        attribution=MAPEAK_ATTRIBUTION,
     )

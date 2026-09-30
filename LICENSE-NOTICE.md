@@ -2,18 +2,19 @@
 
 ## What this project is
 
-An **unofficial, non-commercial, read-only** prototype MCP server that reads
-publicly available data from the Israel Hiking Map project (now branded
-[Mapeak](https://mapeak.com)) and from OpenStreetMap.
+An **unofficial, non-commercial, read-only** MCP server that lets LLM hosts use
+[Mapeak](https://mapeak.com), the Israeli hiking map formerly known as Israel
+Hiking Map. It reads Mapeak's publicly available data, and OpenStreetMap's.
 
-It is **not affiliated with, endorsed by, or supported by** the Israel Hiking Map
-project or its maintainers. It writes nothing upstream and creates no accounts.
+It is a community project, **not an official Mapeak product**, and it is not run
+or supported by the Mapeak team. It uses the Mapeak name with the permission of
+Mapeak's owner. It writes nothing upstream and creates no accounts.
 
 ## Upstream licenses
 
 | Source | License | Notes |
 |---|---|---|
-| Israel Hiking Map / Mapeak ([`IsraelHikingMap/Site`](https://github.com/IsraelHikingMap/Site)) | CC BY-NC-SA 3.0 | The upstream `LICENSE.md` states that "all output of the work should be licensed under the same license". |
+| Mapeak, formerly Israel Hiking Map ([`IsraelHikingMap/Site`](https://github.com/IsraelHikingMap/Site)) | CC BY-NC-SA 3.0 | The upstream `LICENSE.md` states that "all output of the work should be licensed under the same license". |
 | OpenStreetMap | ODbL 1.0 | © OpenStreetMap contributors, <https://www.openstreetmap.org/copyright> |
 
 Because of the **NC (non-commercial)** and **SA (share-alike)** terms, output
@@ -23,7 +24,7 @@ commercially, and derivative works must be shared under the same license.
 ## Frontend dependencies
 
 The inline trail map (`ui/src`, built into
-`src/ihm_mcp/assets/trail-map-v1.html`) bundles third-party code. Their licenses
+`src/mapeak_mcp/assets/trail-map-v1.html`) bundles third-party code. Their licenses
 are permissive and compatible with distributing the built document; each keeps
 its own notice in the bundle.
 
@@ -45,16 +46,16 @@ Any public deployment must select a tile provider appropriate for its traffic.
 Every tool response from this server includes an attribution string. It must be
 preserved when the output is displayed or redistributed:
 
-> Data from Israel Hiking Map / Mapeak (https://mapeak.com), licensed
+> Data from Mapeak, formerly Israel Hiking Map (https://mapeak.com), licensed
 > CC BY-NC-SA 3.0, and from OpenStreetMap contributors
-> (https://www.openstreetmap.org/copyright), licensed ODbL. This is an
-> unofficial, non-commercial, read-only prototype and is not affiliated with or
-> endorsed by the Israel Hiking Map project.
+> (https://www.openstreetmap.org/copyright), licensed ODbL. Served by Mapeak MCP,
+> an unofficial, non-commercial, read-only server that is not run or supported
+> by the Mapeak team.
 
 ## Responsible use
 
 This server is built for low-volume personal and portfolio use. Before any
-public deployment or sustained automated querying, the Israel Hiking Map
+public deployment or sustained automated querying, the Mapeak
 maintainers should be contacted, and OpenStreetMap's
 [API usage policy](https://operations.osmfoundation.org/policies/api/) must be
 respected — including a descriptive User-Agent, aggressive caching, and bounded

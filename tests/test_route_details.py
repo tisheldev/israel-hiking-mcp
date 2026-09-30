@@ -17,10 +17,10 @@ import httpx
 import pytest
 import respx
 
-from ihm_mcp.config import get_settings
-from ihm_mcp.models import Coordinates, LineString, MultiLineString
-from ihm_mcp.route_sources import activity, climb, length_km
-from ihm_mcp.spatial import (
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.models import Coordinates, LineString, MultiLineString
+from mapeak_mcp.route_sources import activity, climb, length_km
+from mapeak_mcp.spatial import (
     fit_geometry,
     geometry_of,
     metres_per_degree,
@@ -160,7 +160,7 @@ async def test_a_share_comes_back_as_a_line_with_what_the_data_records(
     assert result["ascentMeters"] == 256
     assert result["descentMeters"] == 251
     assert result["geometry"]["type"] == "LineString"
-    assert result["ihmUrl"] == f"{BASE_URL}/share/{SHARE_ID}"
+    assert result["mapeakUrl"] == f"{BASE_URL}/share/{SHARE_ID}"
     assert "CC BY-NC-SA" in " ".join(result["attribution"]["sources"])
 
 

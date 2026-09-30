@@ -8,11 +8,11 @@ from typing import Protocol
 
 import anyio
 
-from ihm_mcp.errors import IhmError, UpstreamNotFound
-from ihm_mcp.models import Coordinates
-from ihm_mcp.spatial import Corridor
-from ihm_mcp.tiles.decode import TilePoint, decode_tile
-from ihm_mcp.tiles.grid import (
+from mapeak_mcp.errors import MapeakError, UpstreamNotFound
+from mapeak_mcp.models import Coordinates
+from mapeak_mcp.spatial import Corridor
+from mapeak_mcp.tiles.decode import TilePoint, decode_tile
+from mapeak_mcp.tiles.grid import (
     DEFAULT_ZOOM,
     Tile,
     tile_path,
@@ -74,12 +74,12 @@ async def points_in_tiles(client: TileFetcher, tiles: Sequence[Tile]) -> list[Ti
     and a model would read it as "nothing there".
     """
     decoded: dict[Tile, list[TilePoint]] = {}
-    failures: dict[Tile, IhmError] = {}
+    failures: dict[Tile, MapeakError] = {}
 
     async def collect(tile: Tile) -> None:
         try:
             decoded[tile] = decode_tile(tile, await fetch_tile(client, tile))
-        except IhmError as failure:
+        except MapeakError as failure:
             failures[tile] = failure
             # The call is already lost, and the courteous thing is to stop
             # asking a host that just failed to answer.

@@ -13,13 +13,13 @@ from typing import Annotated
 from pydantic import Field, HttpUrl, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from ihm_mcp import __version__
+from mapeak_mcp import __version__
 
-ENV_PREFIX = "IHM_"
+ENV_PREFIX = "MAPEAK_"
 
 USER_AGENT = (
-    f"israel-hiking-mcp/{__version__} "
-    "(+https://github.com/tisheldev/israel-hiking-mcp; "
+    f"mapeak-mcp/{__version__} "
+    "(+https://github.com/tisheldev/mapeak-mcp; "
     "unofficial non-commercial prototype)"
 )
 
@@ -29,7 +29,7 @@ class ConfigurationError(Exception):
 
 
 class Settings(BaseSettings):
-    """Environment-driven settings, all prefixed `IHM_`."""
+    """Environment-driven settings, all prefixed `MAPEAK_`."""
 
     model_config = SettingsConfigDict(env_prefix=ENV_PREFIX, frozen=True, extra="ignore")
 
@@ -54,7 +54,7 @@ def load_settings() -> Settings:
     try:
         return Settings()
     except ValidationError as exc:
-        # Users set IHM_CACHE_TTL_SECONDS; pydantic reports `cache_ttl_seconds`
+        # Users set MAPEAK_CACHE_TTL_SECONDS; pydantic reports `cache_ttl_seconds`
         # and sends them looking for the wrong thing.
         problems = [
             f"  {ENV_PREFIX}{error['loc'][0]}".upper() + f": {error['msg']}"

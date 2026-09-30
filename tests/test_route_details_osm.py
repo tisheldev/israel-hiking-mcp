@@ -19,10 +19,10 @@ import httpx
 import pytest
 import respx
 
-from ihm_mcp.config import get_settings
-from ihm_mcp.osm import OsmFeature
-from ihm_mcp.route_sources import osm_activity, osm_difficulty, osm_length_km
-from ihm_mcp.spatial import merge_lines
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.osm import OsmFeature
+from mapeak_mcp.route_sources import osm_activity, osm_difficulty, osm_length_km
+from mapeak_mcp.spatial import merge_lines
 from tests.conftest import connected_session
 
 settings = get_settings()
@@ -192,7 +192,7 @@ async def test_the_tags_the_mappers_wrote_are_what_the_answer_reports(
     assert result["lengthKm"] == 6.5
     assert result["ascentMeters"] == 256
     assert result["descentMeters"] == 251
-    assert result["ihmUrl"] == f"{BASE_URL}/poi/OSM/relation_{RELATION}?language=en"
+    assert result["mapeakUrl"] == f"{BASE_URL}/poi/OSM/relation_{RELATION}?language=en"
     assert "OpenStreetMap" in " ".join(result["attribution"]["sources"])
 
 
@@ -200,7 +200,7 @@ async def test_the_requested_language_picks_the_name(osm_route: respx.Route):
     result = await call(language="he")
 
     assert result["title"] == "נחל גלים"
-    assert result["ihmUrl"].endswith("?language=he")
+    assert result["mapeakUrl"].endswith("?language=he")
 
 
 async def test_the_answer_says_who_mapped_the_route_and_what_it_cannot_say(
@@ -221,7 +221,7 @@ async def test_geometry_is_fetched_from_openstreetmap_with_this_servers_name(
     request = osm_route.calls.last.request
     assert request.url.host == "api.openstreetmap.org"
     assert request.url.path == f"/api/0.6/relation/{RELATION}/full.json"
-    assert "israel-hiking-mcp/" in request.headers["user-agent"]
+    assert "mapeak-mcp/" in request.headers["user-agent"]
 
 
 async def test_a_single_way_resolves_without_a_relation(osm: respx.MockRouter):

@@ -28,10 +28,10 @@ from typing import Annotated
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from ihm_mcp.app import ToolContext, app_context, tool
-from ihm_mcp.errors import tool_errors
-from ihm_mcp.models import (
-    IHM_ATTRIBUTION,
+from mapeak_mcp.app import ToolContext, app_context, tool
+from mapeak_mcp.errors import tool_errors
+from mapeak_mcp.models import (
+    MAPEAK_ATTRIBUTION,
     Attribution,
     FeatureRef,
     Language,
@@ -39,7 +39,7 @@ from ihm_mcp.models import (
     PoiAlongRoute,
     PoiCategory,
 )
-from ihm_mcp.pois import (
+from mapeak_mcp.pois import (
     POI_UNKNOWNS,
     WATER_CAUTION,
     PoiConstraints,
@@ -50,9 +50,9 @@ from ihm_mcp.pois import (
     poi_along_route,
     water_in,
 )
-from ihm_mcp.route_sources import adapter_for
-from ihm_mcp.spatial import Corridor
-from ihm_mcp.tiles import MIN_BUFFER_METERS, points_along_corridor
+from mapeak_mcp.route_sources import adapter_for
+from mapeak_mcp.spatial import Corridor
+from mapeak_mcp.tiles import MIN_BUFFER_METERS, points_along_corridor
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class RouteScanned(Model):
     bufferMeters: float = Field(
         description="How far either side of the route was searched, in metres."
     )
-    ihmUrl: str = Field(description="Human-viewable page for this route on the map site.")
+    mapeakUrl: str = Field(description="Human-viewable page for this route on the map site.")
 
 
 class PoisAlongRouteResult(Model):
@@ -225,7 +225,7 @@ async def find_pois_along_route(
     """Find springs, caves, viewpoints and other mapped points near a hiking route.
 
     Takes the same `{source, identifier}` ref as `get_route_details`, resolves
-    the route's line, and returns the points of interest the Israel Hiking Map
+    the route's line, and returns the points of interest Mapeak
     draws within `bufferMeters` of it — nearest first, each with its distance
     from the route in metres and a link to the map site.
 
@@ -266,7 +266,7 @@ async def find_pois_along_route(
     )
 
     points = await points_along_corridor(
-        app.ihm,
+        app.mapeak,
         corridor,
         bufferMeters,
         max_tiles=app.settings.max_tiles_per_tool_call,
@@ -305,7 +305,7 @@ async def find_pois_along_route(
             ref=resolved.ref,
             title=resolved.title,
             bufferMeters=bufferMeters,
-            ihmUrl=resolved.ihmUrl,
+            mapeakUrl=resolved.mapeakUrl,
         ),
         pois=shown,
         unknowns=POI_UNKNOWNS,
@@ -317,5 +317,5 @@ async def find_pois_along_route(
             parts=len(corridor.line.geoms),
             constraints=constraints,
         ),
-        attribution=IHM_ATTRIBUTION,
+        attribution=MAPEAK_ATTRIBUTION,
     )

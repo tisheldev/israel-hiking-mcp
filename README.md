@@ -1,7 +1,8 @@
-# Israel Hiking MCP
+# Mapeak MCP
 
-An [MCP](https://modelcontextprotocol.io) server that puts Israel Hiking Map /
-[Mapeak](https://mapeak.com) trail data in reach of an LLM host. Five tools
+An **unofficial** [MCP](https://modelcontextprotocol.io) server that lets an LLM
+host use [Mapeak](https://mapeak.com), the Israeli hiking map formerly known as
+Israel Hiking Map, and puts its trail data in reach of a model. Five tools
 answer the questions a walk starts with: **where a place is**, **what routes are
 mapped near it**, **what one of those routes actually looks like**, **what the
 map draws beside it**, and **how to get from one point to another**.
@@ -29,7 +30,7 @@ repeating if it says where it came from and where it stops.
 > volunteer-run service — read [Responsible use](#responsible-use) before
 > pointing anything automated at it.
 
-The map data belongs to Israel Hiking Map and OpenStreetMap, under licences that
+The map data belongs to Mapeak and OpenStreetMap, under licences that
 make everything this server returns non-commercial and share-alike. Read
 [LICENSE-NOTICE.md](LICENSE-NOTICE.md) before using any output.
 
@@ -120,7 +121,7 @@ inside the Python package, and Node is needed only to change it, which
 **Claude Code:**
 
 ```bash
-claude mcp add israel-hiking -- uvx --from git+https://github.com/tisheldev/israel-hiking-mcp israel-hiking-mcp
+claude mcp add mapeak -- uvx --from git+https://github.com/tisheldev/mapeak-mcp mapeak-mcp
 ```
 
 **Claude Desktop** — `claude_desktop_config.json`, then restart the app:
@@ -128,12 +129,12 @@ claude mcp add israel-hiking -- uvx --from git+https://github.com/tisheldev/isra
 ```json
 {
   "mcpServers": {
-    "israel-hiking": {
+    "mapeak": {
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/tisheldev/israel-hiking-mcp",
-        "israel-hiking-mcp"
+        "git+https://github.com/tisheldev/mapeak-mcp",
+        "mapeak-mcp"
       ]
     }
   }
@@ -145,12 +146,13 @@ arguments above, and stdio transport. Environment variables from the
 [Configuration](#configuration) table go in an `"env"` object beside
 `"command"`.
 
-To hold a known version rather than whatever `main` holds, append a tag to the
-URL — `git+https://github.com/tisheldev/israel-hiking-mcp@v0.1.0`. Without one,
+To hold a known version rather than whatever `main` holds, append a release tag
+to the URL — `git+https://github.com/tisheldev/mapeak-mcp@<tag>`. Without one,
 every launch resolves the default branch, which is fine for trying it and worth
-pinning for anything you rely on.
+pinning for anything you rely on. Releases from before the rename, `v0.1.0`
+included, install the command as `israel-hiking-mcp` rather than `mapeak-mcp`.
 
-Run `uvx --from git+https://github.com/tisheldev/israel-hiking-mcp israel-hiking-mcp --help`
+Run `uvx --from git+https://github.com/tisheldev/mapeak-mcp mapeak-mcp --help`
 to check the install without a host attached. Run it with no arguments and it
 will sit there saying nothing useful, which is correct: it is waiting for a
 client on stdin. It says so before it waits.
@@ -161,12 +163,12 @@ From a clone, for changing the code rather than using it:
 
 ```bash
 uv sync
-uv run israel-hiking-mcp
+uv run mapeak-mcp
 ```
 
 The server communicates over stdio and produces no stdout output of its own —
 stdout is reserved for the JSON-RPC message stream. Logs go to stderr; set
-`IHM_LOG_LEVEL=DEBUG` for verbose output.
+`MAPEAK_LOG_LEVEL=DEBUG` for verbose output.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest: the checks, what the live
 test group costs, and what a bug report needs.
@@ -209,7 +211,7 @@ host at a working copy instead — so an edit is picked up on the next restart �
 give it `uv` and an absolute path:
 
 ```bash
-claude mcp add israel-hiking-dev -- uv --directory /absolute/path/to/israel-hiking-mcp run israel-hiking-mcp
+claude mcp add mapeak-dev -- uv --directory /absolute/path/to/mapeak-mcp run mapeak-mcp
 ```
 
 The path must be absolute; the host does not run in this directory.
@@ -217,13 +219,13 @@ The path must be absolute; the host does not run in this directory.
 ## Try it with MCP Inspector
 
 ```bash
-npx @modelcontextprotocol/inspector uv run israel-hiking-mcp
+npx @modelcontextprotocol/inspector uv run mapeak-mcp
 ```
 
 Set the working directory to this repository, connect, and open the **Tools**
 tab. Calling the five in order walks the whole server:
 
-1. `search_places` with `query: "Haifa"` → Haifa, Israel first, with an `ihmUrl`
+1. `search_places` with `query: "Haifa"` → Haifa, Israel first, with an `mapeakUrl`
    that opens on the map site, and a warning saying how many worldwide matches
    were dropped.
 2. `search_hiking_routes` with those coordinates, `radiusKm: 15`,
@@ -267,12 +269,12 @@ mirror, warnings and attribution whether or not anything drew it.
 |---|---|---|---|
 | `query` | string | — | Place name, 2–100 characters after trimming |
 | `israelOnly` | boolean | `true` | Drop matches outside the Israel bounding box |
-| `language` | `he` \| `en` | `en` | Language of the returned names, and of the `ihmUrl` link |
+| `language` | `he` \| `en` | `en` | Language of the returned names, and of the `mapeakUrl` link |
 | `limit` | integer | `10` | 1–20 |
 
 Resolves a name — in Hebrew or English — into ranked candidate coordinates,
 each with a `{source, identifier}` ref that the route and POI tools accept and
-an `ihmUrl` that opens the place on the map site. It is the entry point for
+an `mapeakUrl` that opens the place on the map site. It is the entry point for
 everything else here: the `{lat, lng}` it returns is the shape
 `search_hiking_routes` and `route_between_points` take.
 
@@ -296,7 +298,7 @@ warning explaining what to try next. The tool never picks a candidate for you.
 | `minLengthKm` | number \| null | `null` | 0–1000 |
 | `maxLengthKm` | number \| null | `null` | 0–1000 |
 | `difficulty` | `Easy` \| `Moderate` \| `Hard` \| `Very Hard` \| null | `null` | See below |
-| `language` | `he` \| `en` | `en` | Language of names, descriptions and the `ihmUrl` link |
+| `language` | `he` \| `en` | `en` | Language of names, descriptions and the `mapeakUrl` link |
 | `limit` | integer | `10` | 1–20 |
 
 Returns the hiking routes mapped around a point, nearest first, each with its
@@ -339,7 +341,7 @@ route's parts do not join up), with `startPoint`, `title`, `description`,
 to the map site.
 
 **Two sources resolve: `OSM` and `Users`.** `Nakeb`, `iNature` and `Wikidata`
-return `unsupported_source` rather than a guessed URL; the `ihmUrl` from the
+return `unsupported_source` rather than a guessed URL; the `mapeakUrl` from the
 search result opens any of them on the map site meanwhile.
 
 Geometry is GeoJSON, so its positions are `[longitude, latitude]` — the
@@ -364,7 +366,7 @@ without asking OSM: a point cannot be a route.
 
 `/full` returns a relation's members but **not** the members of relations nested
 inside it, so a trail split into sections costs one request per section. That
-recursion is bounded by `IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL` (16), follows
+recursion is bounded by `MAPEAK_MAX_OSM_REQUESTS_PER_TOOL_CALL` (16), follows
 sections breadth-first, visits each relation once however often it is
 referenced, and past the budget fails with `geometry_too_large` rather than
 returning part of a trail as if it were all of it.
@@ -408,7 +410,7 @@ going there is currently a good idea.
 | `route` | `{source, identifier}` | — | The same ref `get_route_details` takes |
 | `bufferMeters` | number | `500` | 25–2000, straight-line distance to the route's drawn line |
 | `categories` | list of category \| null | `null` | Defaults to Water, Natural, Historic, Viewpoint, Camping |
-| `language` | `he` \| `en` | `en` | Language of names, descriptions and the `ihmUrl` link |
+| `language` | `he` \| `en` | `en` | Language of names, descriptions and the `mapeakUrl` link |
 | `limit` | integer | `20` | 1–50 |
 
 Resolves the route through the same adapters as `get_route_details`, then
@@ -522,7 +524,7 @@ live call answers HTTP 500 (checked twice, 2026-08-15), and the map site's own
 frontend never sends it either: it interpolates the straight line client-side.
 Calling one a route would be the most misleading thing this server could return.
 
-There is no `ihmUrl`: a calculated path is not a feature on the map site, and
+There is no `mapeakUrl`: a calculated path is not a feature on the map site, and
 this server creates nothing upstream to link to.
 
 ## Inline trail map
@@ -570,13 +572,13 @@ fetches nothing. Its only outbound requests are basemap tiles from
 resource's CSP. That is a low-volume raster source, appropriate for a personal,
 non-commercial project; **a public deployment should pick a tile provider sized
 for its expected traffic** and update `TILE_ORIGIN` in
-[src/ihm_mcp/ui.py](src/ihm_mcp/ui.py) and `TILE_URL` in
+[src/mapeak_mcp/ui.py](src/mapeak_mcp/ui.py) and `TILE_URL` in
 [ui/src/map.ts](ui/src/map.ts) together.
 
 ### Changing the map
 
 The document served to hosts is a build artifact, committed at
-`src/ihm_mcp/assets/trail-map-v1.html`. Its source of truth is `ui/src`, and it
+`src/mapeak_mcp/assets/trail-map-v1.html`. Its source of truth is `ui/src`, and it
 is never hand-edited.
 
 ```bash
@@ -611,7 +613,7 @@ an answer:
   routes; `search_hiking_routes` does not return them.
 - **Two of the map's sources resolve to geometry.** `OSM` and `Users` do;
   `Nakeb`, `iNature` and `Wikidata` appear in search results and are refused by
-  `get_route_details` with `unsupported_source`. Their `ihmUrl` still opens on
+  `get_route_details` with `unsupported_source`. Their `mapeakUrl` still opens on
   the map site.
 - **Area searches are bounded by a tile budget**, so a 40 km radius is the
   largest circle and a country-length route is too long a corridor to scan.
@@ -632,16 +634,16 @@ inside a tool call.
 
 | Variable | Default | Range | Purpose |
 |---|---|---|---|
-| `IHM_BASE_URL` | `https://mapeak.com` | http(s) URL | API and tile host |
-| `IHM_OSM_API_URL` | `https://api.openstreetmap.org/api/0.6/` | http(s) URL | Where OSM route geometry is fetched from |
-| `IHM_REQUEST_TIMEOUT_SECONDS` | `10` | 0 < x ≤ 60 | Applied to connect, read, write and pool |
-| `IHM_USER_AGENT` | `israel-hiking-mcp/<version> (+repo url)` | non-empty | Sent on every request |
-| `IHM_CACHE_TTL_SECONDS` | `300` | 0–86400 | `0` disables caching |
-| `IHM_CACHE_MAX_ENTRIES` | `512` | ≥ 1 | Bounds the in-memory response cache |
-| `IHM_MAX_CONCURRENT_REQUESTS` | `4` | 1–16 | Simultaneous upstream connections |
-| `IHM_MAX_TILES_PER_TOOL_CALL` | `100` | 1–500 | Tile budget for area searches |
-| `IHM_MAX_OSM_REQUESTS_PER_TOOL_CALL` | `16` | 1–64 | Request budget for nested OSM relations |
-| `IHM_LOG_LEVEL` | `INFO` | log level | Logs go to stderr only |
+| `MAPEAK_BASE_URL` | `https://mapeak.com` | http(s) URL | API and tile host |
+| `MAPEAK_OSM_API_URL` | `https://api.openstreetmap.org/api/0.6/` | http(s) URL | Where OSM route geometry is fetched from |
+| `MAPEAK_REQUEST_TIMEOUT_SECONDS` | `10` | 0 < x ≤ 60 | Applied to connect, read, write and pool |
+| `MAPEAK_USER_AGENT` | `mapeak-mcp/<version> (+repo url)` | non-empty | Sent on every request |
+| `MAPEAK_CACHE_TTL_SECONDS` | `300` | 0–86400 | `0` disables caching |
+| `MAPEAK_CACHE_MAX_ENTRIES` | `512` | ≥ 1 | Bounds the in-memory response cache |
+| `MAPEAK_MAX_CONCURRENT_REQUESTS` | `4` | 1–16 | Simultaneous upstream connections |
+| `MAPEAK_MAX_TILES_PER_TOOL_CALL` | `100` | 1–500 | Tile budget for area searches |
+| `MAPEAK_MAX_OSM_REQUESTS_PER_TOOL_CALL` | `16` | 1–64 | Request budget for nested OSM relations |
+| `MAPEAK_LOG_LEVEL` | `INFO` | log level | Logs go to stderr only |
 
 ### Area searches and the tile budget
 
@@ -755,15 +757,16 @@ carry the date they were measured on.
 Read [LICENSE-NOTICE.md](LICENSE-NOTICE.md) in full before using any output.
 The short version:
 
-- Upstream map data is **CC BY-NC-SA 3.0** (Israel Hiking Map / Mapeak) and
+- Upstream map data is **CC BY-NC-SA 3.0** (Mapeak, formerly Israel Hiking Map) and
   **ODbL** (OpenStreetMap). The upstream licence states that all output of the
   work carries the same licence, so **anything this server returns is
   non-commercial and share-alike**.
 - Every response carries an `attribution` object naming both sources and their
   licences. **Preserve it** wherever the data is displayed or passed on. A model
   handed data with no provenance will invent some.
-- This project is **unofficial**. It is not affiliated with, endorsed by, or
-  supported by the Israel Hiking Map project or its maintainers.
+- This project is **unofficial**. It is a community-built server that lets LLM
+  hosts use Mapeak. It is not an official Mapeak product, and it is not run or
+  supported by the Mapeak team.
 - This repository's own code is distributed under the same CC BY-NC-SA 3.0
   terms, to keep the combined work unambiguous. The full legal text is in
   [LICENSE](LICENSE).
@@ -785,7 +788,7 @@ accident of implementation:
   call in one conversation costs nothing upstream.
 
 Before any public deployment, shared instance, or sustained automated querying:
-**contact the Israel Hiking Map maintainers first**, and read OpenStreetMap's
+**contact the Mapeak maintainers first**, and read OpenStreetMap's
 [API usage policy](https://operations.osmfoundation.org/policies/api/). A tool
 that makes it easy for a language model to fan out over somebody else's map
 tiles is exactly the kind of thing that gets an API closed for everybody.

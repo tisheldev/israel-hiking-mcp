@@ -4,10 +4,10 @@ import logging
 
 import pytest
 
-from ihm_mcp.errors import (
+from mapeak_mcp.errors import (
     MAX_MESSAGE_CHARS,
-    IhmError,
     InvalidInputError,
+    MapeakError,
     UpstreamNotFound,
     UpstreamTimeoutError,
     UpstreamUnavailableError,
@@ -29,12 +29,12 @@ EXPECTED_CODES = {
     "rate_limited",
 }
 
-ERRORS = {cls.code: cls for cls in IhmError.__subclasses__()}
+ERRORS = {cls.code: cls for cls in MapeakError.__subclasses__()}
 
 
 def test_the_taxonomy_is_exactly_what_is_documented():
     assert set(ERRORS) == EXPECTED_CODES
-    assert len(IhmError.__subclasses__()) == len(EXPECTED_CODES)
+    assert len(MapeakError.__subclasses__()) == len(EXPECTED_CODES)
 
 
 @pytest.mark.parametrize("code", sorted(EXPECTED_CODES))
@@ -63,7 +63,7 @@ def test_an_explicit_hint_replaces_the_default():
 
 def test_upstream_not_found_is_outside_the_taxonomy():
     """It is an internal signal; a tool must translate it before returning."""
-    assert not issubclass(UpstreamNotFound, IhmError)
+    assert not issubclass(UpstreamNotFound, MapeakError)
 
 
 async def test_tool_errors_passes_taxonomy_errors_through_unchanged():

@@ -20,8 +20,8 @@ from typing import Any, Self, cast
 import anyio
 import httpx
 
-from ihm_mcp.config import Settings
-from ihm_mcp.errors import (
+from mapeak_mcp.config import Settings
+from mapeak_mcp.errors import (
     RateLimitedError,
     UpstreamNotFound,
     UpstreamSchemaChangedError,

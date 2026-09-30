@@ -20,7 +20,7 @@ from urllib.parse import quote
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from ihm_mcp import ATTRIBUTION
+from mapeak_mcp import ATTRIBUTION
 
 Latitude = Annotated[float, Field(ge=-90, le=90)]
 Longitude = Annotated[float, Field(ge=-180, le=180)]
@@ -89,7 +89,7 @@ class BoundingBox(Model):
         )
 
 
-#: Roughly the extent the Israel Hiking Map covers. It is a box, so it also
+#: Roughly the extent Mapeak covers. It is a box, so it also
 #: takes in slivers of neighbouring countries and leaves out nothing that
 #: matters here; it exists to rank a worldwide search, not to draw a border.
 ISRAEL_BBOX = BoundingBox(minLat=29.3, minLng=34.2, maxLat=33.4, maxLng=35.9)
@@ -139,10 +139,10 @@ class Attribution(Model):
     sources: list[str] = Field(description="Each contributing dataset and its licence.")
 
 
-IHM_ATTRIBUTION = Attribution(
+MAPEAK_ATTRIBUTION = Attribution(
     notice=ATTRIBUTION,
     sources=[
-        "Israel Hiking Map / Mapeak (https://mapeak.com) — CC BY-NC-SA 3.0",
+        "Mapeak, formerly Israel Hiking Map (https://mapeak.com) — CC BY-NC-SA 3.0",
         "OpenStreetMap contributors (https://www.openstreetmap.org/copyright) — ODbL",
     ],
 )
@@ -169,7 +169,7 @@ class PlaceResult(Model):
         description="Upstream flag: the map holds extended data (description, "
         "images) for this feature. Not a promise that any tool can resolve it."
     )
-    ihmUrl: str = Field(description="Human-viewable page for this feature on the map site.")
+    mapeakUrl: str = Field(description="Human-viewable page for this feature on the map site.")
 
 
 class SearchedArea(Model):
@@ -215,7 +215,7 @@ class RouteSummary(Model):
         description="Great-circle distance from the search centre to "
         "`startPoint`, rounded to 10 m. Not a walking distance."
     )
-    ihmUrl: str = Field(description="Human-viewable page for this route on the map site.")
+    mapeakUrl: str = Field(description="Human-viewable page for this route on the map site.")
 
 
 class Evidence(Model):
@@ -293,7 +293,7 @@ class PoiAlongRoute(Model):
         description="A safety note that belongs with this feature wherever it is "
         "repeated. Not optional context — relay it whenever you relay the point."
     )
-    ihmUrl: str = Field(description="Human-viewable page for this feature on the map site.")
+    mapeakUrl: str = Field(description="Human-viewable page for this feature on the map site.")
 
 
 #: One GeoJSON position: longitude first, then latitude. The opposite order to
@@ -393,7 +393,7 @@ class ResolvedRoute(Model):
         "positions. This is the line somebody drew or recorded, not a "
         "guaranteed path on the ground."
     )
-    ihmUrl: str = Field(description="Human-viewable page for this route on the map site.")
+    mapeakUrl: str = Field(description="Human-viewable page for this route on the map site.")
 
 
 class PathEnd(Model):

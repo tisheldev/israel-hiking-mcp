@@ -16,8 +16,8 @@ import { isCalculatedRoute, isRecordedRoute, linePartsOf, toViewState } from "./
 import type { MapRenderer, MapViewModel, ResultSource, ViewState } from "./types.js";
 
 const ATTRIBUTION = {
-  notice: "Data from Israel Hiking Map / Mapeak.",
-  sources: ["Israel Hiking Map / Mapeak — CC BY-NC-SA 3.0", "OpenStreetMap — ODbL"],
+  notice: "Data from Mapeak, formerly Israel Hiking Map.",
+  sources: ["Mapeak, formerly Israel Hiking Map — CC BY-NC-SA 3.0", "OpenStreetMap — ODbL"],
 };
 
 function recordedRoute(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -39,7 +39,7 @@ function recordedRoute(overrides: Record<string, unknown> = {}): Record<string, 
         [35.01, 32.83],
       ],
     },
-    ihmUrl: "https://israelhiking.osm.org.il/poi/OSM/relation_282071",
+    mapeakUrl: "https://mapeak.com/poi/OSM/relation_282071",
     geometryDetail: {
       pointCount: 3,
       recordedPointCount: 3,

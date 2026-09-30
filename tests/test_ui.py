@@ -27,8 +27,8 @@ import respx
 from mcp.types import TextContent, TextResourceContents
 from pydantic import AnyUrl
 
-from ihm_mcp.config import get_settings
-from ihm_mcp.ui import (
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.ui import (
     TILE_ORIGIN,
     TRAIL_MAP_MIME_TYPE,
     TRAIL_MAP_RESOURCE_URI,
@@ -61,7 +61,7 @@ async def test_exactly_one_trail_map_resource_is_offered():
     async with connected_session() as session:
         resources = (await session.list_resources()).resources
 
-    trail_maps = [r for r in resources if str(r.uri).startswith("ui://israel-hiking/")]
+    trail_maps = [r for r in resources if str(r.uri).startswith("ui://mapeak/")]
     assert len(trail_maps) == 1
 
     (trail_map,) = trail_maps
@@ -252,4 +252,4 @@ def test_the_built_wheel_carries_the_document(tmp_path: Path):
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
 
-    assert "ihm_mcp/assets/trail-map-v1.html" in names
+    assert "mapeak_mcp/assets/trail-map-v1.html" in names

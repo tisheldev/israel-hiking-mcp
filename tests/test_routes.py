@@ -20,12 +20,12 @@ import mercantile
 import pytest
 import respx
 
-from ihm_mcp import tiles
-from ihm_mcp.config import get_settings
-from ihm_mcp.models import Coordinates, FeatureRef, Language, RouteSummary
-from ihm_mcp.route_markers import RouteConstraints, length_km, nearest_first
-from ihm_mcp.spatial import haversine_km
-from ihm_mcp.tiles import Tile, tile_path, tiles_for_radius
+from mapeak_mcp import tiles
+from mapeak_mcp.config import get_settings
+from mapeak_mcp.models import Coordinates, FeatureRef, Language, RouteSummary
+from mapeak_mcp.route_markers import RouteConstraints, length_km, nearest_first
+from mapeak_mcp.spatial import haversine_km
+from mapeak_mcp.tiles import Tile, tile_path, tiles_for_radius
 from tests.conftest import connected_session, tags
 
 BASE_URL = str(get_settings().base_url).rstrip("/")
@@ -196,7 +196,7 @@ async def test_a_route_carries_its_identity_measurements_and_link(
     assert downtown["description"] == "Segment 1: the lower city"
     assert downtown["difficulty"] is None
     assert downtown["startPoint"]["lat"] == pytest.approx(NEARBY.lat, abs=1e-4)
-    assert downtown["ihmUrl"] == f"{BASE_URL}/poi/OSM/relation_3472179?language=en"
+    assert downtown["mapeakUrl"] == f"{BASE_URL}/poi/OSM/relation_3472179?language=en"
     assert "CC BY-NC-SA" in " ".join(result["attribution"]["sources"])
 
 
@@ -213,7 +213,7 @@ async def test_names_come_back_in_the_language_asked_for(routes_near_haifa: resp
     result = await call(radiusKm=10, language="he")
 
     assert "נחל עובדיה" in titles(result)
-    assert result["routes"][0]["ihmUrl"].endswith("?language=he")
+    assert result["routes"][0]["mapeakUrl"].endswith("?language=he")
 
 
 async def test_a_route_from_another_dataset_keeps_its_own_source(
@@ -228,7 +228,7 @@ async def test_a_route_from_another_dataset_keeps_its_own_source(
 
     assert route["ref"] == {"source": "Nakeb", "identifier": "255"}
     assert route["difficulty"] == "Moderate"
-    assert route["ihmUrl"] == f"{BASE_URL}/poi/Nakeb/255?language=en"
+    assert route["mapeakUrl"] == f"{BASE_URL}/poi/Nakeb/255?language=en"
 
 
 # --- what gets filtered out --------------------------------------------------
@@ -417,7 +417,7 @@ def test_routes_at_the_same_distance_are_ordered_by_their_identity():
             lengthKm=None,
             startPoint=HAIFA,
             distanceFromSearchCenterKm=distance,
-            ihmUrl="",
+            mapeakUrl="",
         )
 
     shuffled = [

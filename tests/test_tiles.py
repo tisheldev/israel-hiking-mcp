@@ -15,17 +15,17 @@ import pytest
 import respx
 from pydantic import HttpUrl
 
-from ihm_mcp.config import Settings
-from ihm_mcp.errors import (
+from mapeak_mcp.config import Settings
+from mapeak_mcp.errors import (
     InvalidInputError,
     SearchAreaTooLargeError,
     UpstreamSchemaChangedError,
     UpstreamTimeoutError,
     UpstreamUnavailableError,
 )
-from ihm_mcp.ihm_client import UpstreamClient
-from ihm_mcp.models import Coordinates
-from ihm_mcp.tiles import (
+from mapeak_mcp.mapeak_client import UpstreamClient
+from mapeak_mcp.models import Coordinates
+from mapeak_mcp.tiles import (
     DEFAULT_ZOOM,
     MAX_ZOOM,
     MIN_ZOOM,
@@ -41,7 +41,7 @@ from ihm_mcp.tiles import (
     tile_path,
     tiles_for_radius,
 )
-from ihm_mcp.tiles.decode import TilePoint
+from mapeak_mcp.tiles.decode import TilePoint
 from tests.conftest import tags
 
 BASE_URL = "https://upstream.test"

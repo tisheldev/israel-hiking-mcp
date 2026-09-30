@@ -11,14 +11,14 @@ import sys
 
 import pytest
 
-from ihm_mcp import __version__, server
-from ihm_mcp.server import build_parser, main
+from mapeak_mcp import __version__, server
+from mapeak_mcp.server import build_parser, main
 
 
 def run(*args: str) -> subprocess.CompletedProcess[str]:
     """The installed entry point, as a user would reach it."""
     return subprocess.run(
-        [sys.executable, "-m", "ihm_mcp.server", *args],
+        [sys.executable, "-m", "mapeak_mcp.server", *args],
         capture_output=True,
         text=True,
         timeout=30,
@@ -29,7 +29,7 @@ def test_version_prints_the_package_version_and_exits():
     result = run("--version")
 
     assert result.returncode == 0
-    assert result.stdout.strip() == f"israel-hiking-mcp {__version__}"
+    assert result.stdout.strip() == f"mapeak-mcp {__version__}"
 
 
 def test_help_says_it_is_not_an_interactive_program():
@@ -44,7 +44,7 @@ def test_help_says_it_is_not_an_interactive_program():
 def test_help_points_at_the_licence_and_the_environment():
     result = run("--help")
 
-    assert "IHM_" in result.stdout
+    assert "MAPEAK_" in result.stdout
     assert "LICENSE-NOTICE.md" in result.stdout
 
 
@@ -63,7 +63,7 @@ def test_an_unknown_flag_is_refused_rather_than_ignored():
 
 def test_the_parser_is_built_without_starting_anything():
     # `build_parser` is separate from `main` so this can be asserted at all.
-    assert build_parser().prog == "israel-hiking-mcp"
+    assert build_parser().prog == "mapeak-mcp"
 
 
 def test_main_rejects_arguments_it_does_not_know():

@@ -12,6 +12,21 @@ and is not recorded below.
 
 ## [Unreleased]
 
+### Changed
+
+- **Renamed to Mapeak MCP.** The map this server reads has rebranded from
+  Israel Hiking Map to [Mapeak](https://mapeak.com), and at its owner's request
+  the project now carries the Mapeak name. It is still unofficial: a community
+  server that lets LLM hosts use Mapeak, not a Mapeak product. Every public name
+  moved with it, so this is a breaking change for existing installs:
+  - The repository is now `tisheldev/mapeak-mcp`. GitHub redirects the old URL.
+  - The package and command are now `mapeak-mcp`, formerly `israel-hiking-mcp`.
+  - The MCP server name is now `mapeak`, formerly `israel-hiking`. Hosts that
+    registered it under the old name see new tool prefixes.
+  - Environment variables are now prefixed `MAPEAK_`, formerly `IHM_`.
+  - The `ihmUrl` field in every result is now `mapeakUrl`.
+  - The trail-map resource is now `ui://mapeak/trail-map-v1.html`.
+
 ### Added
 
 - **An inline trail map.** `get_route_details` and `route_between_points` now
@@ -85,5 +100,5 @@ Two things that packaging turned up, both fixed before release:
 - Every measurement in the README carries the date it was taken. Two had
   already drifted upstream within a day of being written down.
 
-[Unreleased]: https://github.com/tisheldev/israel-hiking-mcp/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/tisheldev/israel-hiking-mcp/releases/tag/v0.1.0
+[Unreleased]: https://github.com/tisheldev/mapeak-mcp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/tisheldev/mapeak-mcp/releases/tag/v0.1.0

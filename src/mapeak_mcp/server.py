@@ -17,20 +17,20 @@ import logging
 import os
 import sys
 
-from ihm_mcp import SERVER_NAME, __version__
-from ihm_mcp import tools as tools  # registers the tools
-from ihm_mcp import ui as ui  # registers the trail-map resource
-from ihm_mcp.app import mcp
-from ihm_mcp.config import ConfigurationError, get_settings
+from mapeak_mcp import SERVER_NAME, __version__
+from mapeak_mcp import tools as tools  # registers the tools
+from mapeak_mcp import ui as ui  # registers the trail-map resource
+from mapeak_mcp.app import mcp
+from mapeak_mcp.config import ConfigurationError, get_settings
 
-logger = logging.getLogger("ihm_mcp")
+logger = logging.getLogger("mapeak_mcp")
 
 __all__ = ["build_parser", "configure_logging", "main", "mcp"]
 
 #: Shown by `--help`. A server that answers nothing when run by hand is the
 #: normal case for stdio, and the first thing somebody trying it needs told.
-DESCRIPTION = """Five read-only tools over Israel Hiking Map (Mapeak) and OpenStreetMap
-hiking data: find a place, find the routes mapped near it, resolve one route's
+DESCRIPTION = """Five read-only tools over Mapeak (formerly Israel Hiking Map) and
+OpenStreetMap hiking data: find a place, find the routes mapped near it, resolve one route's
 geometry, list the points of interest along it, and route between two points.
 Unofficial and non-commercial; see LICENSE-NOTICE.md.
 
@@ -41,8 +41,8 @@ appear to hang: it is waiting for a client that is never going to say anything.
 """
 
 EPILOG = """configuration:
-  Every setting is an environment variable prefixed IHM_, read once at
-  startup. IHM_LOG_LEVEL=DEBUG turns on verbose logging, which goes to
+  Every setting is an environment variable prefixed MAPEAK_, read once at
+  startup. MAPEAK_LOG_LEVEL=DEBUG turns on verbose logging, which goes to
   stderr. The full table is in the README.
 
 licensing:
@@ -51,13 +51,13 @@ licensing:
   preserved. See LICENSE-NOTICE.md.
 
 homepage:
-  https://github.com/tisheldev/israel-hiking-mcp
+  https://github.com/tisheldev/mapeak-mcp
 """
 
 
 def configure_logging(level: int | str | None = None) -> None:
     """Send all log records to stderr, replacing any inherited handlers."""
-    resolved = level if level is not None else os.getenv("IHM_LOG_LEVEL", "INFO")
+    resolved = level if level is not None else os.getenv("MAPEAK_LOG_LEVEL", "INFO")
     root = logging.getLogger()
     for handler in list(root.handlers):
         root.removeHandler(handler)
@@ -73,7 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     """The command line, which exists mostly so `--help` can explain that there
     isn't one. Every knob is an environment variable."""
     return argparse.ArgumentParser(
-        prog="israel-hiking-mcp",
+        prog="mapeak-mcp",
         description=DESCRIPTION,
         epilog=EPILOG,
         formatter_class=argparse.RawDescriptionHelpFormatter,

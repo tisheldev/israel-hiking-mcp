@@ -14,9 +14,9 @@ import math
 
 import mercantile
 
-from ihm_mcp.errors import InvalidInputError, SearchAreaTooLargeError
-from ihm_mcp.models import BoundingBox, Coordinates
-from ihm_mcp.spatial import Corridor
+from mapeak_mcp.errors import InvalidInputError, SearchAreaTooLargeError
+from mapeak_mcp.models import BoundingBox, Coordinates
+from mapeak_mcp.spatial import Corridor
 
 Tile = mercantile.Tile
 

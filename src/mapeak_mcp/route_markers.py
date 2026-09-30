@@ -17,8 +17,8 @@ ordering something a caller can rely on.
 
 from __future__ import annotations
 
-from ihm_mcp import tiles
-from ihm_mcp.models import (
+from mapeak_mcp import tiles
+from mapeak_mcp.models import (
     Coordinates,
     Difficulty,
     Language,
@@ -27,8 +27,8 @@ from ihm_mcp.models import (
     known_difficulty,
     poi_url,
 )
-from ihm_mcp.spatial import METRES_PER_KM, haversine_km, reported_km
-from ihm_mcp.tiles import TilePoint
+from mapeak_mcp.spatial import METRES_PER_KM, haversine_km, reported_km
+from mapeak_mcp.tiles import TilePoint
 
 #: The `poiCategory` this server's route search is about. The tileset also
 #: carries `Bicycle` and `4x4` route markers, which the MVP does not return.
@@ -122,7 +122,7 @@ def route_summary(
         lengthKm=length_km(point.properties),
         startPoint=point.coordinates,
         distanceFromSearchCenterKm=reported_km(haversine_km(center, point.coordinates)),
-        ihmUrl=poi_url(base_url, point.ref, language),
+        mapeakUrl=poi_url(base_url, point.ref, language),
     )
 
 
